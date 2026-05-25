@@ -37,20 +37,20 @@
   - Nog geen iOS repo — die komt bij 10 klanten
   - ✅ Klaar
 
-- [~] 🧑 **0.3** Supabase project aanmaken
-  - supabase.com → New project → naam: "invora-production"
-  - **VERPLICHT regio: Frankfurt (eu-central-1)** — AVG vereiste
-  - Sterk wachtwoord instellen + opslaan in wachtwoordmanager
-  - Settings → API → noteer: Project URL, anon key, service_role key ✅
-  - Settings → Database → Connection string → noteer de URI ⚠️ NOG NIET INGEVULD in .env.local (DATABASE_URL leeg)
-  - ✅ Klaar als: project draait, 4 sleutels genoteerd (3/4 — DATABASE_URL ontbreekt)
+- [x] 🧑 **0.3** Supabase project aanmaken
+  - Project: invora-production in Frankfurt (eu-central-1) — AVG ✅
+  - Project ref: `obxvotpcrcdmrsxoxcjz`
+  - Anon key + service_role key in .env.local ✅
+  - DATABASE_URL (direct connection met URL-encoded wachtwoord) ✅
+  - ℹ️ Supabase CLI installatie uitgesteld tot Fase 1.2 (wanneer we migraties gaan schrijven)
+  - ✅ Klaar
 
-- [ ] 🧑 **0.4** Vercel account koppelen — **WACHT op initial commit**
-  - vercel.com → Login met GitHub
-  - New Project → Import `invora` repository → Framework: Next.js
-  - Eerste deploy zal falen (geen Next.js code yet) — dat is ok, code volgt in Fase 1.1
-  - Nog NIET environment variables instellen (komen later in Fase 0.9 wrap-up)
-  - ✅ Klaar als: Vercel project aangemaakt + gekoppeld aan GitHub repo
+- [x] 🧑 **0.4** Vercel account koppelen
+  - Project: `johnnyvanrhijns-projects/invora` (prj_dLBw9jCjHuym75Tn4Qo2aYHrdzJf)
+  - Production URL: invora-zeta.vercel.app
+  - Eerste deploy faalde zoals verwacht (geen Next.js code yet) — wordt opgelost in Fase 1.1
+  - Vercel CLI v54.4.1 lokaal geïnstalleerd + `vercel link` uitgevoerd
+  - ✅ Klaar
 
 - [x] 🧑 **0.5** Resend account aanmaken (domein verificatie uitgesteld)
   - resend.com → Sign up ✅
@@ -70,27 +70,28 @@
   - Developers → API keys → Test + Live key in .env.local ✅
   - ✅ Klaar
 
-- [ ] 🧑 **0.7** Stripe account controleren
-  - Controleer of Stripe Tax is ingeschakeld
+- [!] 🧑 **0.7** Stripe account controleren — **UITGESTELD tot Fase 11**
+  - Wordt opgepakt aan het begin van Fase 11 (Stripe abonnement) zodat we direct doortikken
+  - Controleer of Stripe Tax is ingeschakeld voor NL (BTW 21%)
   - Dashboard → Developers → API keys → noteer Test publishable key + test secret key
   - Stripe CLI installeren: `npm install -g stripe` → `stripe login`
   - ✅ Klaar als: test keys genoteerd + Stripe CLI werkend
 
-- [ ] 🧑 **0.8** Uptime Robot account aanmaken
-  - uptimerobot.com → Sign up (gratis) — nog geen monitor instellen
+- [!] 🧑 **0.8** Uptime Robot account aanmaken — **UITGESTELD tot Fase 13.2**
+  - Vlak voor MVP lancering oppakken (samen met 13.2 monitor instellen)
+  - uptimerobot.com → Sign up (gratis)
   - ✅ Klaar als: account aangemaakt
 
-- [~] 🧑 **0.9** .env.local aanmaken en invullen
-  - `.env.local` aangemaakt + `.env.example` template ✅
-  - Supabase URL + anon + service_role keys ✅
+- [x] 🤖 **0.9** .env.local + Vercel env vars
+  - `.env.local` met alle MVP-vars + `.env.example` template ✅
+  - Supabase URL + anon + service_role + DATABASE_URL ✅
   - Resend key ✅
   - Mollie test + live keys ✅
   - INVOICE_TOKEN_SECRET + INTERNAL_DASHBOARD_SECRET gegenereerd ✅
-  - KVK_API_KEY en POSTCODE_API_KEY leeg (komen bij mijlpaal 3 klanten) ✅
-  - DATABASE_URL ⏳ wachten op 0.3 wrap-up
-  - Stripe keys ⏳ wachten op 0.7
-  - Vercel ENV variables ⏳ wachten op 0.4 (eerst Vercel project koppelen)
-  - ✅ Klaar als: `npm run dev` start zonder errors (kan pas na Fase 1.1)
+  - KVK + Postcode + Stripe + GA leeg (komen later per fase) ✅
+  - Vercel env vars gepusht via CLI naar **Production + Development** (13 vars elk) ✅
+  - ⚠️ **Preview environment leeg** — CLI heeft beperking in non-interactive mode voor preview-zonder-branch. Op te lossen wanneer we eerste feature-PR/preview gebruiken: ofwel via Vercel dashboard UI, ofwel via PAT + REST API. Niet kritiek voor MVP development op main branch.
+  - ✅ Klaar voor Fase 1
 
 ---
 
@@ -479,7 +480,7 @@ Bij 10 klanten → M10 (iOS app)
 
 | Fase | Naam | Status | Opmerkingen |
 |------|------|--------|-------------|
-| 0 | Accounts + services | [~] | Domein 0.1 uitgesteld tot werkende web app · KvK + Postcode overgeslagen (komen bij M3) |
+| 0 | Accounts + services | [x] | Klaar voor Fase 1. Uitgesteld: 0.1 domein (tot werkende app), 0.5b Resend domein, 0.7 Stripe (Fase 11), 0.8 UptimeRobot (Fase 13). Preview env vars: later via PAT/UI. |
 | 1 | Projectfundament | [ ] | Web only, iOS-ready architectuur |
 | 2 | Auth + onboarding | [ ] | Voornaam bij registratie, handmatig adres invullen |
 | 3 | Dashboard + nav | [ ] | Responsive: sidebar desktop, bottomnav mobiel |
