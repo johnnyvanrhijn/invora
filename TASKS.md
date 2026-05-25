@@ -1,6 +1,6 @@
 # TASKS.md — Invora Takenlijst
 *Bijgehouden gedurende het gehele project. Altijd up-to-date houden.*
-*Laatste update: mei 2026*
+*Laatste update: 25 mei 2026*
 
 ## Status
 - `[ ]` Nog niet gestart
@@ -16,6 +16,123 @@
 - **MVP lancering** — web app live, eerste betalende gebruiker
 - **Mijlpaal 3 klanten** → KvK API + Postcode API activeren
 - **Mijlpaal 10 klanten** → iOS app bouwen
+
+---
+
+## 📓 Fase samenvattingen
+
+> Korte recaps per afgeronde fase: wat is gebouwd, welke afwijkingen er waren en welke nieuwe taken eruit voortkwamen. Bedoeld om snel terug te kunnen vinden waarom keuzes gemaakt zijn zonder de chatgeschiedenis door te lopen.
+
+### Fase 0 — Accounts en externe services *(afgerond mei 2026)*
+
+**Wat is gebeurd:**
+- GitHub repo aangemaakt (Private, `johnnyvanrhijn/invora`)
+- Supabase project `invora-production` in Frankfurt (eu-central-1, AVG-compliant), ref `obxvotpcrcdmrsxoxcjz`
+- Vercel project gekoppeld via CLI (`prj_dLBw9jCjHuym75Tn4Qo2aYHrdzJf`), production URL `invora-zeta.vercel.app`
+- Resend account + API key, Mollie account + test/live keys, alle env vars in `.env.local` + Vercel (Production + Development)
+- `INVOICE_TOKEN_SECRET` en `INTERNAL_DASHBOARD_SECRET` gegenereerd
+
+**Afwijkingen van plan:**
+- Repo heet `invora` i.p.v. `invora-web` (besluit Johnny — geen aparte iOS repo nu)
+- Eerste Vercel deploy faalde bewust (er was nog geen Next.js code) — opgelost in Fase 1.1
+- Vercel CLI kan in non-interactive mode geen env vars naar de Preview environment pushen. Geaccepteerd risico: 13 vars staan in Production + Development; Preview vullen we later via dashboard of PAT
+- Domein registratie (0.1), Resend domein verificatie (0.5b), Stripe controle (0.7), UptimeRobot (0.8) bewust uitgesteld — komen op natuurlijke momenten later in het project. Risico: invora.nl kan in de tussentijd geclaimed worden — geaccepteerd
+
+**Nieuwe taken:**
+- Geen nieuwe taken — alles wat uitgesteld is, staat al in latere fases gemarkeerd
+
+---
+
+### Fase 1.1 — Web app projectstructuur *(afgerond 25 mei 2026)*
+
+**Wat is gebouwd:**
+- Next.js 15.5.18 (React 19.1, App Router) aangemaakt via `create-next-app` met behoud van bestaande projectbestanden (CLAUDE.md, INVORA_CONTEXT.md, TASKS.md, `.env.*`, `.vercel`, `.git`) door tijdelijke backup → restore
+- TypeScript strict-config met `noUnusedLocals` / `noUnusedParameters` / `noImplicitReturns`
+- Volledige mapstructuur (`app/(auth|app|marketing)/`, `app/api/{kvk,postcode,invoice,payments,stripe,webhooks/{mollie,stripe}}`, `components/{ui,app,marketing}`, `lib/{supabase,validations}`, `hooks`, `types`, `supabase/migrations`, `public/{fonts,images}`)
+- 23 shadcn componenten + handmatige `form.tsx` (zie afwijkingen)
+- Invora design tokens (sage green `#7B9E87`, warm wit `#F9F7F4`, status-kleuren, card/button radius, `pulse-ring` keyframe voor de coach mark) in `app/globals.css` via Tailwind v4 `@theme`
+- Plus Jakarta Sans via `next/font/google` (CSS-variable `--font-plus-jakarta`)
+- Supabase clients (`client.ts`, `server.ts`, `middleware.ts`) met Next 15 async cookies API
+- Route-protectie middleware: `/dashboard` → 307 → `/login?redirectTo=…` werkt
+- Utilities (`cn`, `formatCurrency`, `formatDate`, `formatDateShort`, `formatRelativeDate`, `getGreeting`, `isValidIBAN`, `isValidKvK`) en constants (`APP_NAME`, `BTW_VRIJSTELLING_TEKST`, `PAYMENT_TERMS`, `TRIAL_DAYS`, etc.)
+- Type-definities voor SubscriptionStatus, InvoiceStatus, ClientType, ServicePriceType, TimeEntryStatus, ActivityEventType, NotificationPreferences + placeholder `Database` (vervangen in 1.2)
+- Zod-schemas (IBAN, KvK, e-mail, voornaam, wachtwoord, bedrag, uren) — kwartier-afronding via `.transform()`
+- ESLint flat config (ESLint 9), Prettier + `.prettierignore`, samengevoegde `.gitignore`
+- Placeholder pagina's voor `/`, dashboard, facturen, clienten, uren, diensten, rapporten, instellingen + `(auth)` en `(app)` layouts
+
+**Afwijkingen van plan:**
+- **Next.js 15** i.p.v. 14 — gekozen na overleg. Async `cookies()`/`headers()`/`params` API; React 19; stabiele LTS
+- **Tailwind v4** i.p.v. v3 — moderne CSS-first config. Geen `tailwind.config.ts`; tokens leven in `@theme` in `globals.css`. `tailwindcss-animate` vervangen door `tw-animate-css` (door shadcn meegenomen). Kleuren als hex i.p.v. HSL
+- **shadcn/ui v4 (`base-nova` style)** — gebruikt `@base-ui/react` i.p.v. Radix als onderliggende library. Componenten-API is identiek; geen runtime impact
+- **`toast` → `sonner`** — shadcn v4 raadt Sonner aan; `<Toaster richColors closeButton />` ingebouwd in `app/layout.tsx`
+- **Form-component handmatig geschreven** — `base-nova` registry levert geen `form.tsx`. Oplossing: `@radix-ui/react-slot` toegevoegd (micro-package) en de standaard shadcn-Form-API zelf gebouwd. Geeft directe compatibiliteit met alle online voorbeelden
+- **ESLint flat config** (`eslint.config.mjs`) i.p.v. `.eslintrc.json` — moderne ESLint 9 standaard; dezelfde rules
+- **`calendar.tsx`** — één `@ts-expect-error` toegevoegd op `table:` regel; upstream mismatch tussen shadcn calendar en huidige `react-day-picker` types. Werkt op runtime
+- **Dev server poort** — draaide op 3001 (3000 was in gebruik). Geen probleem voor verdere fases
+
+**Nieuwe taken (toegevoegd):**
+- ThemeProvider met `next-themes` toevoegen in Fase 3.1 — CSS-tokens voor `.dark` staan klaar, alleen de switcher ontbreekt om systeemvoorkeur op te volgen
+- Initial commit + push naar GitHub `invora` repo blijft openstaan — wacht tot 1.2 + 1.3 ook klaar zijn zodat we één coherente "Fase 1" commit hebben
+
+---
+
+### Fase 1.2 — Supabase database schema *(afgerond 25 mei 2026)*
+
+**Wat is gebouwd:**
+- `supabase/migrations/001_initial_schema.sql` (888 regels) — volledig idempotent, één-shot migratie
+- 9 publieke tabellen exact zoals INVORA_CONTEXT.md sectie 3–16 voorschrijft, plus iOS-ready kolommen (`expo_push_token` op `users`)
+- 31 indexen op alle FKs + veelvuldig gefilterde kolommen (status, archived, due_date, payment_token, etc.)
+- 10 triggers: 7× `set_updated_at`, `update_service_usage_count` op invoice_lines, `ensure_single_default_reminder` op reminder_templates, `on_auth_user_created` op `auth.users`
+- 7 helper-functies: `handle_updated_at`, `handle_service_usage_count`, `handle_single_default_reminder`, `handle_new_auth_user`, `generate_invoice_number` (atomic), `generate_credit_note_number`, `get_dashboard_stats`
+- RLS aan op alle tabellen met `USING` + `WITH CHECK` voor INSERT-safety
+- Storage bucket `logos` (private, 2 MB, png/jpeg/svg) met 4 per-user RLS policies
+- `types/database.ts` gegenereerd via `supabase gen types typescript` — placeholder vervangen (854 regels)
+- Verificatiescript `scripts/verify-schema.mjs` met 30 checks — allemaal groen
+- Migratie uitgevoerd via Supabase CLI (`supabase init` + `link --project-ref obxvotpcrcdmrsxoxcjz` + `db push`). Migration history nu lokaal aanwezig
+
+**Afwijkingen van plan:**
+- **Mollie encryptie:** Optie A gekozen — applicatie-level AES-256 met `MOLLIE_ENCRYPTION_KEY` env var (toegevoegd aan `.env.example`). Geen pgsodium/Vault. Kolom blijft `text` met base64 ciphertext + IV
+- **activity_log:** Optie B gekozen — `activity_log_insert_own` policy verwijderd uit prompt. Alleen `SELECT` voor ingelogde gebruiker; alle INSERTs uitsluitend via `service_role` (webhooks, server API routes)
+- **Factuurnummer race condition:** Optie B gekozen — `generate_invoice_number` doet `UPDATE … RETURNING` in één atomic statement. De trigger `handle_invoice_number_increment` uit de prompt is **niet** geïmplementeerd (overbodig en zou dubbele increments veroorzaken)
+- **Migratie methode:** Optie B gelukt — Supabase CLI. Eén hick-up: het wachtwoord in `DATABASE_URL` was URL-encoded; voor `supabase link --password` moest het eerst worden gedecodeerd (`decodeURIComponent`). Direct opgelost
+- **Verificatie:** in plaats van handmatige queries in Supabase Dashboard heb ik een `scripts/verify-schema.mjs` geschreven (vereist `pg` als dev-dep, toegevoegd) — geautomatiseerd, idempotent, herbruikbaar na elke migratie. Vermeld in `.prettierignore` is `types/database.ts` al; `scripts/` mappen worden gewoon door Prettier gepakt
+- **RLS-test met twee echte users:** uitgesteld — vereist werkende registratie + login (Fase 2). De RLS-policy-definities zijn wel geverifieerd: aanwezig, juiste cmd, juiste USING/WITH CHECK expressies
+
+**Nieuwe taken (toegevoegd):**
+- **Encryptie utility** voor Mollie key (Fase 6 — Mollie koppeling): `lib/crypto/mollie.ts` met `encryptMollieKey(plain)` / `decryptMollieKey(ciphertext)` op basis van `MOLLIE_ENCRYPTION_KEY`. Format: `<iv-hex>:<ciphertext-base64>`. Komt natuurlijk in 6.1
+- **`MOLLIE_ENCRYPTION_KEY` lokaal genereren** door Johnny: `openssl rand -hex 32` → in `.env.local` zetten. Voor Vercel envs idem doen vóór Fase 6
+- **`pg` als dev-dep** toegevoegd voor verificatie/migratiescripts (geen runtime impact)
+- **RLS-integration test met 2 users** verplaatst naar Fase 2 — komt na werkende registratie
+
+---
+
+### Fase 1.3 — Environment variables controleren *(afgerond 25 mei 2026)*
+
+**Wat is gebeurd:**
+- `lib/env.ts → validateEnv()` runtime-uitgevoerd tegen `.env.local` — alle vijf required vars present
+- TypeScript (`tsc --noEmit`) en ESLint (`npm run lint`) regression: 0 fouten / 0 warnings
+- Dev server start `Ready in 4.3s` zonder env-warnings, automatisch op vrije poort (3002 — 3000/3001 nog in gebruik door restjes vorige Fase-runs)
+- HTTP-tests: `/` → 200 + correcte title, `/dashboard` → 307 → `/login?redirectTo=%2Fdashboard`, `/login` → 404 (verwacht, route komt in Fase 2)
+- End-to-end smoke test (`scripts/smoke-supabase.mjs`): anon-client haalt 0 rijen op `clients` (RLS blokkeert correct), onbestaande tabel geeft error (negative control), RPC `get_dashboard_stats({p_user_id})` is aanroepbaar en retourneert JSON met de 4 verwachte velden — bewijst dat env vars + Supabase clients + remote schema bij elkaar werken
+
+**Afwijkingen van plan:**
+- **Eigenaar veranderd 🧑 → 🤖**: in de oorspronkelijke planning was 1.3 ingepland als handmatige check ("controleer dat npm run dev start"). Volledig automatiseerbaar, dus geautomatiseerd uitgevoerd; Johnny hoeft hier niets meer voor te doen
+- **Smoke test toegevoegd**: niet expliciet in 1.3 vereist, wel toegevoegd omdat we anders pas in Fase 2 zouden ontdekken of de Supabase-keten echt werkt. Klein script, herbruikbaar voor toekomstige sanity checks
+
+**Nieuwe taken:**
+- Geen — Fase 1 is compleet en klaar voor Fase 2
+
+---
+
+### Fase 1 — Overall afronding *(25 mei 2026)*
+
+Drie sub-fases (1.1 fundament, 1.2 schema, 1.3 env-check) opgeleverd in één werkdag. Stack-keuzes vastgelegd (Next 15, Tailwind v4, shadcn v4 met base-nova, Supabase EU-Frankfurt). Database staat klaar met 9 tabellen, volledige RLS, 7 helper-functies en gegenereerde TypeScript types. Twee dev-only scripts (`verify-schema.mjs`, `smoke-supabase.mjs`) zijn herbruikbaar voor latere fases. Eén `pg` dev-dep toegevoegd voor die scripts.
+
+**Openstaande follow-ups vanuit Fase 1:**
+- Initial commit + push naar GitHub `invora` repo (al sinds 1.1 openstaand — nu kan dit als één coherente "Fase 1" commit)
+- `MOLLIE_ENCRYPTION_KEY` lokaal genereren (`openssl rand -hex 32`) vóór Fase 6
+- ThemeProvider met `next-themes` ingepland in Fase 3.1
+- RLS-2-user-integration-test ingepland in Fase 2
 
 ---
 
@@ -98,35 +215,44 @@
 ## FASE 1 — Projectfundament (MVP)
 *Vereist: Fase 0 afgerond*
 
-- [ ] 🤖 **1.1** Web app projectstructuur opzetten
-  - Next.js 14 App Router + TypeScript + Tailwind + shadcn/ui
-  - Invora design tokens configureren in tailwind.config.ts (zie INVORA_CONTEXT.md sectie 20)
-  - shadcn/ui componenten installeren (button, input, label, card, badge, dialog, dropdown-menu, tabs, toast, separator, skeleton, form, select, textarea, switch, checkbox, table, sheet, progress, tooltip, popover, calendar)
-  - Plus Jakarta Sans font configureren via next/font
-  - Supabase clients: browser client, server client, middleware helper
-  - Route protectie middleware (auth + onboarding check)
-  - Mapstructuur aanmaken (zie CLAUDE.md sectie 6)
-  - .gitignore (nooit .env bestanden committen)
-  - Initial commit naar `invora-web` repo
-  - **iOS-readiness:** alle mutations via API routes, geen server actions voor data wijzigingen
-  - **Tests:** `npm run dev` start foutloos, TypeScript 0 fouten, alle shadcn componenten beschikbaar
+- [x] 🤖 **1.1** Web app projectstructuur opzetten — *afgerond 25 mei 2026*
+  - Next.js **15.5.18** App Router + TypeScript strict + **Tailwind v4** + shadcn/ui v4 (`base-nova` style, @base-ui/react onder de motorkap)
+  - Invora design tokens in `app/globals.css` via `@theme` (Tailwind v4: geen `tailwind.config.ts` meer)
+  - 23 shadcn componenten geïnstalleerd: button, input, label, card, badge, dialog, dropdown-menu, tabs, **sonner** (i.p.v. toast), separator, skeleton, form (handmatig geschreven), select, textarea, switch, checkbox, table, sheet, progress, tooltip, popover, calendar, avatar
+  - Plus Jakarta Sans via `next/font/google` → CSS-variable `--font-plus-jakarta`
+  - Supabase clients (`lib/supabase/{client,server,middleware}.ts`) met Next 15 async cookies API
+  - Route-protectie middleware (`middleware.ts`) — getest: `/dashboard` redirect 307 → `/login?redirectTo=…`
+  - Volledige mapstructuur (`app/(auth|app|marketing)/...`, `api/`, `components/{ui,app,marketing}`, `lib/{supabase,validations}`, etc.) met `.gitkeep`s
+  - `.gitignore` gemerged met bestaande Vercel/Claude regels
+  - `.eslintrc` → ESLint 9 flat config (`eslint.config.mjs`), Prettier + `.prettierignore` voor vendor code
+  - **iOS-readiness:** alle mutations via API routes (nog te bouwen in latere fases), geen server actions voor data
+  - **Tests uitgevoerd:** `npx tsc --noEmit` (0 fouten), `npm run lint` (schoon), dev server op `localhost:3001` (3000 was bezet), homepage HTTP 200 met Invora tokens zichtbaar, middleware redirect werkt
+  - **Initial commit naar GitHub:** nog te doen — Johnny voert handmatig uit zodra dit en 1.2 + 1.3 afgerond zijn
 
-- [ ] 🤖 **1.2** Supabase database schema aanmaken
-  - Migratie: `/supabase/migrations/001_initial_schema.sql`
-  - Tabellen: users, clients, services, invoices, invoice_lines, time_entries, credit_notes, reminder_templates, activity_log
-  - Alle velden zoals beschreven in INVORA_CONTEXT.md secties 3–16
-  - `users` tabel bevat `first_name` kolom (verplicht bij registratie)
-  - `clients` tabel bevat alle velden voor toekomstige postcode lookup (address_street, etc.) — velden bestaan, auto-invullen komt pas bij 3 klanten
-  - `users` tabel bevat `kvk_number` veld — veld bestaat, KvK lookup komt pas bij 3 klanten
-  - RLS policies op alle tabellen (gebruiker ziet alleen eigen data)
-  - Indexen op: alle foreign keys, user_id, status, created_at
-  - Triggers: updated_at automatisch bijwerken, invoice_current_number ophogen
-  - TypeScript types genereren via Supabase CLI
-  - **Tests:** alle tabellen aangemaakt, RLS werkt met 2 test users, types gegenereerd
+- [x] 🤖 **1.2** Supabase database schema aanmaken — *afgerond 25 mei 2026*
+  - Migratie: `supabase/migrations/001_initial_schema.sql` (888 regels), uitgevoerd via Supabase CLI `db push` naar project `obxvotpcrcdmrsxoxcjz`
+  - 9 tabellen: users, clients, services, invoices, invoice_lines, credit_notes, time_entries, reminder_templates, activity_log
+  - Alle velden zoals INVORA_CONTEXT.md secties 3–16 + iOS-ready kolommen (`expo_push_token`, etc.)
+  - 31 indexen, 10 triggers, 7 helper-functies
+  - **RLS aan op alle tabellen.** Eigen-data-only via `auth.uid() = user_id` (met `WITH CHECK` voor INSERT)
+  - **activity_log:** alleen SELECT — INSERTs uitsluitend via server-side service_role
+  - **Factuurnummer atomic:** `generate_invoice_number()` doet `UPDATE … RETURNING` in één statement (race-condition-vrij); aparte increment-trigger vervalt
+  - **Mollie API key:** kolom `mollie_api_key_encrypted text` + `MOLLIE_ENCRYPTION_KEY` env var (AES-256 via Node crypto, toegevoegd aan `.env.example`)
+  - Storage bucket `logos` private, 2 MB limit, alleen png/jpeg/svg, RLS per user-folder
+  - Auth trigger `on_auth_user_created` maakt automatisch `public.users` rij aan (haalt voornaam uit `raw_user_meta_data.first_name` of `given_name` voor Google OAuth)
+  - TypeScript types gegenereerd (`types/database.ts`, 854 regels) — placeholder vervangen
+  - **Verificatie:** `scripts/verify-schema.mjs` draait 30 checks (tabellen, RLS, triggers, functies, indexen, storage, activity_log policy-set). Alles groen
+  - **Tests:** alle 9 tabellen aangemaakt, RLS aan, types compileren, `npx tsc --noEmit` schoon, `npm run lint` schoon
+  - **RLS met 2 test users:** niet getest — vereist echte auth flow (komt in Fase 2)
 
-- [ ] 🧑 **1.3** Environment variables controleren
-  - Controleer dat `npm run dev` start zonder missing variable errors
-  - ✅ Klaar als: app laadt op localhost:3000
+- [x] 🤖 **1.3** Environment variables controleren — *afgerond 25 mei 2026*
+  - `lib/env.ts → validateEnv()` slaagt: alle 5 required vars in `.env.local` (Supabase URL/anon/service_role, APP_URL, INVOICE_TOKEN_SECRET)
+  - `npx tsc --noEmit` 0 fouten, `npm run lint` schoon
+  - Dev server start op `localhost:3002` (3000/3001 in gebruik) zonder env-warnings
+  - Homepage `/` HTTP 200 met juiste title
+  - Middleware-redirect `/dashboard` → 307 → `/login?redirectTo=%2Fdashboard` werkt
+  - End-to-end smoke test (`scripts/smoke-supabase.mjs`): anon-client → DB, RLS blokkeert (0 rijen voor anon), RPC `get_dashboard_stats` returnt 4 verwachte velden
+  - Eigenaar veranderd van 🧑 naar 🤖: was als handmatige check ingepland maar volledig te automatiseren
 
 ---
 
@@ -188,7 +314,8 @@
     - Staafdiagram omzet per maand, laatste 6 maanden (Recharts BarChart)
     - Lege staat als geen facturen (abstracte SVG placeholder + CTA knop)
     - Coach mark na onboarding: sage green pulse rondom "Nieuw" knop, tooltip, verdwijnt na klik of 10 sec
-  - **Tests:** sidebar inklapbaar, responsive gedrag op alle breakpoints, coach mark werkt, skeleton loading zichtbaar, lege staat correct
+  - **Dark mode:** `ThemeProvider` met `next-themes` toevoegen in `app/layout.tsx` (attribute `class`, default `system`). De CSS-tokens voor `.dark` staan al klaar in `globals.css` sinds Fase 1.1.
+  - **Tests:** sidebar inklapbaar, responsive gedrag op alle breakpoints, coach mark werkt, skeleton loading zichtbaar, lege staat correct, dark mode volgt systeemvoorkeur
 
 ---
 
@@ -481,7 +608,7 @@ Bij 10 klanten → M10 (iOS app)
 | Fase | Naam | Status | Opmerkingen |
 |------|------|--------|-------------|
 | 0 | Accounts + services | [x] | Klaar voor Fase 1. Uitgesteld: 0.1 domein (tot werkende app), 0.5b Resend domein, 0.7 Stripe (Fase 11), 0.8 UptimeRobot (Fase 13). Preview env vars: later via PAT/UI. |
-| 1 | Projectfundament | [ ] | Web only, iOS-ready architectuur |
+| 1 | Projectfundament | [x] | 1.1 ✅ stack. 1.2 ✅ schema + types. 1.3 ✅ env + smoke test. Klaar voor Fase 2. |
 | 2 | Auth + onboarding | [ ] | Voornaam bij registratie, handmatig adres invullen |
 | 3 | Dashboard + nav | [ ] | Responsive: sidebar desktop, bottomnav mobiel |
 | 4 | Cliënten + diensten | [ ] | |

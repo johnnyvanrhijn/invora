@@ -1,0 +1,186 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+@custom-variant dark (&:is(.dark *));
+
+/* ------------------------------------------------------------------
+ * Invora design tokens
+ * - Sage green primary, warm-white background, Plus Jakarta Sans
+ * - Status badges: paid (sage), open (grey), late (red)
+ * - Tailwind v4: tokens leven in CSS via @theme i.p.v. tailwind.config
+ * ------------------------------------------------------------------ */
+
+@theme inline {
+  /* shadcn semantische tokens */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-plus-jakarta), system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-plus-jakarta), system-ui, sans-serif;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* Invora-specifieke kleuren — bereikbaar als bg-invora-primary etc. */
+  --color-invora-primary: #7b9e87;
+  --color-invora-primary-dark: #5e8a6e;
+  --color-invora-primary-light: #e8f2ec;
+  --color-invora-background: #f9f7f4;
+  --color-invora-surface: #ffffff;
+  --color-invora-text: #1a1a1a;
+  --color-invora-text-muted: #6b7280;
+  --color-invora-success: #7b9e87;
+  --color-invora-error: #dc2626;
+  --color-invora-warning: #d97706;
+  --color-invora-status-paid: #7b9e87;
+  --color-invora-status-open: #6b7280;
+  --color-invora-status-late: #dc2626;
+
+  /* Card / button radius aliases */
+  --radius-card: 0.75rem;
+  --radius-button: 0.5rem;
+
+  /* Shadows */
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.08), 0 1px 2px 0 rgb(0 0 0 / 0.04);
+  --shadow-card-hover: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -1px rgb(0 0 0 / 0.04);
+
+  /* Animaties (pulse-ring voor coach mark) */
+  --animate-pulse-ring: pulse-ring 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+
+  @keyframes pulse-ring {
+    0% {
+      transform: scale(1);
+      opacity: 1;
+    }
+    100% {
+      transform: scale(1.4);
+      opacity: 0;
+    }
+  }
+}
+
+:root {
+  /* Lichte modus — Invora sage green op warm wit */
+  --background: #f9f7f4;
+  --foreground: #1a1a1a;
+  --card: #ffffff;
+  --card-foreground: #1a1a1a;
+  --popover: #ffffff;
+  --popover-foreground: #1a1a1a;
+  --primary: #7b9e87;
+  --primary-foreground: #ffffff;
+  --secondary: #efece6;
+  --secondary-foreground: #1a1a1a;
+  --muted: #efece6;
+  --muted-foreground: #6b7280;
+  --accent: #e8f2ec;
+  --accent-foreground: #3a5946;
+  --destructive: #dc2626;
+  --border: #e7e2d8;
+  --input: #e7e2d8;
+  --ring: #7b9e87;
+  --chart-1: #7b9e87;
+  --chart-2: #5e8a6e;
+  --chart-3: #d97706;
+  --chart-4: #6b7280;
+  --chart-5: #dc2626;
+  --radius: 0.5rem;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #1a1a1a;
+  --sidebar-primary: #7b9e87;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e8f2ec;
+  --sidebar-accent-foreground: #3a5946;
+  --sidebar-border: #e7e2d8;
+  --sidebar-ring: #7b9e87;
+}
+
+.dark {
+  --background: #161616;
+  --foreground: #f9f7f4;
+  --card: #1f1f1f;
+  --card-foreground: #f9f7f4;
+  --popover: #1f1f1f;
+  --popover-foreground: #f9f7f4;
+  --primary: #7b9e87;
+  --primary-foreground: #ffffff;
+  --secondary: #292929;
+  --secondary-foreground: #f9f7f4;
+  --muted: #292929;
+  --muted-foreground: #9ca3af;
+  --accent: #29362e;
+  --accent-foreground: #cfe1d5;
+  --destructive: #b91c1c;
+  --border: #2f2f2f;
+  --input: #2f2f2f;
+  --ring: #7b9e87;
+  --chart-1: #7b9e87;
+  --chart-2: #5e8a6e;
+  --chart-3: #d97706;
+  --chart-4: #9ca3af;
+  --chart-5: #ef4444;
+  --sidebar: #1f1f1f;
+  --sidebar-foreground: #f9f7f4;
+  --sidebar-primary: #7b9e87;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #29362e;
+  --sidebar-accent-foreground: #cfe1d5;
+  --sidebar-border: #2f2f2f;
+  --sidebar-ring: #7b9e87;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
