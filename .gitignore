@@ -1,0 +1,16 @@
+# Environment variables — NOOIT committen
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Claude Code — per-ontwikkelaar lokale settings
+.claude/settings.local.json
