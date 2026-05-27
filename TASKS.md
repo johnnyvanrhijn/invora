@@ -215,6 +215,31 @@ Drie sub-fases (1.1 fundament, 1.2 schema, 1.3 env-check) opgeleverd in één we
 - Alle 20 secties doorlopen door Johnny → akkoord
 - Registratie, login, wachtwoord vergeten/reset, Google OAuth (na configuratie), onboarding, middleware-redirects, multi-user RLS, responsive design, URL-parameter mapping — allemaal geslaagd
 
+**Vercel production deploy fixes (27 mei 2026):**
+
+Tijdens het uitrollen naar productie liepen we tegen twee gecombineerde problemen aan:
+
+1. **Vercel Framework Preset stond op "Other"** in het project (vanaf project-creation in Fase 0.4). Output-dir op `public` of root. Daardoor deployde Vercel de Next.js routes niet — alles gaf 404, zelfs `/`. Dit viel pas op nadat we de middleware-issues hadden geëlimineerd. Opgelost met **`vercel.json`**:
+   ```json
+   { "framework": "nextjs" }
+   ```
+   Dit overrult de dashboard-instelling permanent.
+
+2. **`middleware.ts` met `@supabase/ssr` crashte in Edge runtime** met `__dirname is not defined`. Pogingen die niet werkten:
+   - Inline `updateSession` (path-alias bundling probleem fixte wel, maar `__dirname` bleef)
+   - `experimental.nodeMiddleware: true` (build OK, runtime gaf `Cannot use import statement outside a module`)
+   - `"type": "module"` in package.json (zelfde issue)
+
+   **Definitieve oplossing:** middleware volledig verwijderd. Alle auth- en onboarding-redirects zitten nu in server-component layouts:
+   - `app/(app)/layout.tsx` → `getUser()` + onboarding-completed check
+   - `app/(onboarding)/layout.tsx` → `getUser()` check
+   - `app/(auth)/login/page.tsx` + `register/page.tsx` → ingelogd → /dashboard
+   - Welcome + onboarding pages → onboarding voltooid → /dashboard
+
+   Trade-off: server-side `getUser()` per beschermde request (lichte extra load), maar zero Edge-runtime risico.
+
+**Architectuurregel (vastleggen):** geen `@supabase/ssr` in middleware op Vercel. Auth-checks doen we in server components met de standaard Supabase server client. Mocht er ooit weer een middleware nodig zijn, dan alleen Edge-safe code zonder Node-only dependencies.
+
 ---
 
 ## FASE 0 — Accounts en externe services (MVP)
