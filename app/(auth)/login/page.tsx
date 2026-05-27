@@ -1,12 +1,25 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server'
 import { LoginForm } from './login-form'
 
 export const metadata: Metadata = {
   title: 'Inloggen',
 }
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  // Al ingelogd → direct naar dashboard. (Niet via middleware doen — dat zou
+  // een redirect-loop opleveren bij een stale auth-cookie.)
+  if (user) {
+    redirect('/dashboard')
+  }
+
   return (
     <div className="space-y-6">
       <div>

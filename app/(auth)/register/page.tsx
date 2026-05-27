@@ -1,12 +1,24 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server'
 import { RegisterForm } from './register-form'
 
 export const metadata: Metadata = {
   title: 'Account aanmaken',
 }
 
-export default function RegisterPage() {
+export default async function RegisterPage() {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  // Al ingelogd → direct naar dashboard (zie /login voor reden).
+  if (user) {
+    redirect('/dashboard')
+  }
+
   return (
     <div className="space-y-6">
       <div>
