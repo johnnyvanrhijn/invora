@@ -23,7 +23,7 @@ function ok(condition, label) {
 let allPassed = true
 
 // 1. Anon client mag publieke tabellen aanspreken (krijgt 0 rijen door RLS)
-const { data, error, count } = await supabase
+const { error, count } = await supabase
   .from('clients')
   .select('id', { count: 'exact', head: true })
 

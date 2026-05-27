@@ -46,3 +46,111 @@ export const hoursSchema = z
   .positive({ message: 'Aantal uren moet groter zijn dan 0' })
   .max(24, { message: 'Maximaal 24 uur per registratie' })
   .transform((val) => Math.round(val / 0.25) * 0.25)
+
+// ─── Auth flow ──────────────────────────────────────────────────────────────
+
+// Registratie formulier validatie
+export const registerSchema = z
+  .object({
+    first_name: firstNameSchema,
+    email: emailSchema,
+    password: passwordSchema,
+    password_confirm: z.string(),
+    terms_accepted: z.boolean().refine((val) => val === true, {
+      message: 'Je moet akkoord gaan met de voorwaarden',
+    }),
+    privacy_accepted: z.boolean().refine((val) => val === true, {
+      message: 'Je moet akkoord gaan met het privacybeleid',
+    }),
+  })
+  .refine((data) => data.password === data.password_confirm, {
+    message: 'Wachtwoorden komen niet overeen',
+    path: ['password_confirm'],
+  })
+
+export type RegisterFormData = z.infer<typeof registerSchema>
+
+// Login formulier validatie
+export const loginSchema = z.object({
+  email: emailSchema,
+  password: z.string().min(1, { message: 'Wachtwoord is verplicht' }),
+})
+
+export type LoginFormData = z.infer<typeof loginSchema>
+
+// Wachtwoord vergeten validatie
+export const forgotPasswordSchema = z.object({
+  email: emailSchema,
+})
+
+export type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>
+
+// Wachtwoord reset validatie
+export const resetPasswordSchema = z
+  .object({
+    password: passwordSchema,
+    password_confirm: z.string(),
+  })
+  .refine((data) => data.password === data.password_confirm, {
+    message: 'Wachtwoorden komen niet overeen',
+    path: ['password_confirm'],
+  })
+
+export type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>
+
+// Google OAuth terms acceptatie validatie.
+// first_name is optioneel — wordt alleen verstuurd als de gebruiker geen
+// voornaam uit de OAuth-provider heeft gekregen (bijv. Google zonder given_name).
+export const termsAcceptanceSchema = z.object({
+  first_name: firstNameSchema.optional(),
+  terms_accepted: z.boolean().refine((val) => val === true, {
+    message: 'Je moet akkoord gaan met de voorwaarden',
+  }),
+  privacy_accepted: z.boolean().refine((val) => val === true, {
+    message: 'Je moet akkoord gaan met het privacybeleid',
+  }),
+})
+
+export type TermsAcceptanceFormData = z.infer<typeof termsAcceptanceSchema>
+
+// ─── Onboarding ─────────────────────────────────────────────────────────────
+
+// Onboarding stap 1: KvK-nummer optioneel, rest verplicht
+export const onboardingStep1Schema = z.object({
+  kvk_number: z
+    .string()
+    .transform((val) => val.replace(/\s/g, ''))
+    .refine((val) => val === '' || /^\d{8}$/.test(val), {
+      message: 'KvK-nummer bestaat uit 8 cijfers',
+    })
+    .optional()
+    .or(z.literal('')),
+  company_name: z
+    .string()
+    .min(1, { message: 'Bedrijfsnaam is verplicht' })
+    .max(100, { message: 'Bedrijfsnaam mag maximaal 100 tekens bevatten' })
+    .trim(),
+  address_street: z
+    .string()
+    .min(1, { message: 'Straat en huisnummer zijn verplicht' })
+    .max(100)
+    .trim(),
+  address_postal_code: z
+    .string()
+    .min(1, { message: 'Postcode is verplicht' })
+    .max(10)
+    .trim(),
+  address_city: z.string().min(1, { message: 'Stad is verplicht' }).max(100).trim(),
+  iban: ibanSchema,
+})
+
+export type OnboardingStep1Data = z.infer<typeof onboardingStep1Schema>
+
+// Onboarding stap 2: BTW-status (verplicht)
+export const onboardingStep2Schema = z.object({
+  btw_vrijgesteld: z.boolean({
+    message: 'Selecteer je BTW-status',
+  }),
+})
+
+export type OnboardingStep2Data = z.infer<typeof onboardingStep2Schema>

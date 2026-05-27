@@ -136,6 +136,87 @@ Drie sub-fases (1.1 fundament, 1.2 schema, 1.3 env-check) opgeleverd in één we
 
 ---
 
+### Fase 2 — Authenticatie en onboarding *(afgerond 25 mei 2026)*
+
+**Wat is gebouwd:**
+- **Service role client** `lib/supabase/service.ts` — bypast RLS, alleen server-side
+- **Validatieschema's** uitgebreid (`lib/validations/index.ts`): register, login, forgotPassword, resetPassword, termsAcceptance, onboardingStep1, onboardingStep2 — allemaal Zod 4-compatibel met `.refine()` voor verplichte booleans
+- **API routes** voor mutations (iOS-ready): `/api/onboarding/step1`, `/api/onboarding/step2`, `/api/auth/accept-terms` — alle met `getUser()` auth-check + Zod parsing + Supabase update
+- **Middleware** uitgebreid met onboarding redirect: ingelogd + `onboarding_completed=false` + niet op `/welcome`/`/onboarding` → redirect naar `/welcome`. `/reset-password` en `/forgot-password` uit AUTH_ROUTES gehaald zodat Supabase-link sessies niet meteen worden weggeleid
+- **Auth-pagina's** in `app/(auth)/`: gesplitste layout (formulier links, sage green gradient rechts met tagline + © Work Remote, op mobiel alleen formulier). Pagina's: `register`, `register/verify`, `login`, `forgot-password`, `reset-password` + eigen `loading.tsx` en `error.tsx`
+- **Registratieformulier** met Google login knop, wachtwoordsterkte-indicator (te kort/zwak/gemiddeld/sterk), toon/verberg wachtwoord toggle, twee verplichte checkboxes (voorwaarden + privacy met externe links), inline Zod-validatie, fout-mapping ("User already registered" → klik naar login)
+- **E-mailbevestigingspagina** met SVG-illustratie (envelop + persoon in sage green/warm zand), 60-seconden cooldown op "opnieuw versturen" knop, e-mail uit sessionStorage gelezen met fallback op invoerveld
+- **OAuth callback** (`app/auth/callback/route.ts`): wisselt code → sessie, checkt `terms_accepted_at` (Google users) en `onboarding_completed`, en redirect naar `/auth/accept-terms`, `/welcome` of `/dashboard`
+- **Google OAuth terms-acceptatie** (`app/auth/accept-terms/`): kaart-stijl pagina, begroet met voornaam uit Google account (`given_name` via auth-trigger), twee checkboxes → POST naar `/api/auth/accept-terms` → redirect `/welcome`
+- **Login** met Google knop, "of" divider, toon/verberg wachtwoord, wachtwoord vergeten link, foutmapping ("Invalid login credentials" / "Email not confirmed"), URL-parameter handling voor `?error=auth_callback_failed` en `?message=password_updated`, redirect honourt `?redirectTo=`
+- **Wachtwoord vergeten:** stuurt magic link via `resetPasswordForEmail`, toont altijd dezelfde melding (verbergt of e-mail bestaat)
+- **Wachtwoord reset:** detecteert sessie (anders "link verlopen" foutmelding), wachtwoordsterkte indicator, na succes uitloggen + redirect naar `/login?message=password_updated`
+- **Welkomstscherm** en **onboarding** in nieuwe route group `app/(onboarding)/` (naast `(app)` en `(auth)`) — zo blijven ze buiten de straks gebouwde app-sidebar:
+  - `/welcome`: server component, fetcht `first_name`, toont SVG-illustratie (figuur die naar knop wijst), groene gradient CTA "Account instellen →"
+  - `/onboarding`: server-side onboarding-check (al voltooid → `/dashboard`), client form met progress balk (50% / 100%), stap 1 (KvK optioneel met validatie-vinkje, bedrijfsgegevens, IBAN met live formatter + validatie-vinkje), stap 2 (twee BTW-kaarten met Lucide-icons FileCheck/Receipt, sage green geselecteerde border)
+- **Placeholder-pagina's** `app/voorwaarden/page.tsx` en `app/privacy/page.tsx` — werkende links vanuit registratie + accept-terms, gemarkeerd als placeholder tot Fase 12 inhoudelijke teksten oplevert
+- **Herbruikbare componenten** in `components/app/auth/`: `GoogleLoginButton`, `PasswordStrength`
+
+**Afwijkingen van plan:**
+- **Welkomstscherm + onboarding in eigen route group `(onboarding)`** i.p.v. `(app)`. De prompt stond beide opties expliciet toe. Reden: in Fase 3 krijgt `(app)` een sidebar — door `/welcome` en `/onboarding` daar buiten te houden, hoeven we straks geen conditionele "verberg sidebar voor deze paden" te bouwen
+- **Voorwaarden/privacy placeholders bewust aangemaakt** — antwoord van Johnny op vraagstelling tijdens fase. Auth-flow heeft verplichte juridische links; 404 bij klikken = juridisch zwak. Definitieve tekst komt in/voor Fase 12
+- **`/reset-password` en `/forgot-password` uit AUTH_ROUTES verwijderd** — Supabase logt de gebruiker bij een reset-link al in voordat hij op `/reset-password` aankomt. Als ingelogde users automatisch worden weggeleid van auth-routes, werkt de reset-flow niet
+- **Google OAuth knop is gebouwd maar werkt nog niet** — vereist dat Johnny in Google Cloud Console OAuth-credentials aanmaakt en die in Supabase invoert. Knop staat klaar, geeft tijdens klik nu een Supabase fout (geen provider geconfigureerd). Geen blocker voor MVP-build
+- **Supabase Auth dashboard-instellingen niet automatisch te verifiëren** — Johnny moet handmatig controleren: Email confirmations aan, Site URL = `NEXT_PUBLIC_APP_URL`, redirect allowlist met `http://localhost:3000/**` en `http://localhost:3003/**`, Nederlandse e-mail templates voor "Confirm signup" en "Reset password"
+- **Pre-existing lint-fout in `scripts/smoke-supabase.mjs`** gefixt (ongebruikte `data` variabele) zodat lint schoon blijft
+- **Zod 4-syntax** voor verplichte booleans (`z.boolean().refine((v) => v === true)`) i.p.v. `z.literal(true, { errorMap })` uit prompt — Zod 4 heeft `errorMap` hernoemd naar `error`. Refine is robuuster en draagt de bedoeling beter over
+
+**Tests:**
+- `npx tsc --noEmit` → 0 fouten
+- `npm run lint` → schoon
+- `npm run build` → 26 routes gegenereerd, geen errors
+- HTTP-tests publieke routes: register/login/forgot/reset/verify/voorwaarden/privacy → 200
+- HTTP-tests beveiligde routes: /dashboard, /welcome, /onboarding → 307 → /login?redirectTo=…
+- HTTP-tests speciale routes: /auth/callback zonder code → 307 → /login?error=auth_callback_failed; /auth/accept-terms zonder auth → 307 → /login
+- HTTP-tests API: POST /api/onboarding/step1, /step2, /api/auth/accept-terms zonder auth → 401
+- End-to-end integratietest (`scripts/test-auth-flow.mjs`, 16/16 ✓): user aanmaken via admin API → auth-trigger maakt public.users rij met juiste `first_name` → `onboarding_completed=false` → onboarding step 1 + step 2 updaten correct → `btw_vrijgesteld=true` en `onboarding_completed=true` na step 2 → **RLS-test met 2 echte users:** user A kan eigen rij lezen, user B krijgt `null` voor user A (RLS blokkeert) — hiermee is de openstaande RLS-test uit Fase 1.2 ook afgevinkt
+- Responsive: visuele check niet mogelijk zonder browser maar layout (`flex` met `lg:flex-1`-paneel verborgen op mobiel) volgt mobile-first patroon, build succesvol
+
+**Handmatige acties voor Johnny:**
+1. **Supabase dashboard → Authentication → Settings:** email confirmations aan, Site URL = `NEXT_PUBLIC_APP_URL`, voeg `http://localhost:3000/**` en `http://localhost:3003/**` toe aan redirect allowlist (+ later `https://invora.nl/**`)
+2. **Supabase → Email templates:** vervang "Confirm signup" en "Reset password" met Nederlandse teksten uit Fase 2-prompt (alleen kosmetisch — flow werkt al wel met defaults)
+3. **Google OAuth credentials (optioneel voor MVP):** Google Cloud Console → OAuth 2.0 client ID → invullen in Supabase → Authentication → Providers → Google. Zonder dit werkt e-mail/wachtwoord normaal; Google-knop geeft alleen een foutmelding bij gebruik
+4. **Test handmatig in browser** zodra je de Supabase-instellingen hebt gecheckt: register, ontvang bevestigingsmail, login, doorloop onboarding, controleer dat /facturen redirect naar /welcome voor een tweede testaccount dat onboarding nog niet heeft voltooid
+
+**Nieuwe taken (toegevoegd):**
+- `scripts/test-auth-flow.mjs` als herbruikbaar regressiescript bewaard — handig in latere fases om RLS niet te breken
+- Voorwaarden + privacy placeholderteksten moeten in Fase 12 (of eerder als juridische tekst beschikbaar komt) worden vervangen door definitieve inhoud — staat al in scope van Fase 12 marketingsite
+
+**Bug-fixes tijdens handmatige testronde (27 mei 2026):**
+
+1. **Dubbele accept-terms voor e-mail/wachtwoord-registratie** — register-form vroeg de checkboxes wel uit, maar `terms_accepted_at` werd nooit opgeslagen, waardoor de callback iedereen onnodig naar `/auth/accept-terms` stuurde. Opgelost via:
+   - Migratie `002_terms_in_signup_metadata.sql` — auth-trigger leest nu `terms_accepted_at` en `privacy_accepted_at` uit `raw_user_meta_data`
+   - `register-form.tsx` stuurt beide timestamps mee in `signUp().options.data`
+   - Google OAuth pad ongewijzigd (geen metadata → blijft via accept-terms gaan)
+
+2. **"er" fallback voor lege voornaam** — `first_name || 'er'` in welkomstscherm + accept-terms gaf grammaticaal foutieve UI ("Welkom, er!"). Opgelost door conditionele headings: bij lege voornaam toon "Welkom bij Invora!" / "Welkom! Nog één stap." zonder naam.
+
+3. **Google geeft niet altijd `given_name` mee** — bij oudere/persoonlijke Gmail-accounts ontvingen we alleen `name` of `full_name` (full name als één string), waardoor `first_name` leeg bleef. Opgelost door:
+   - `accept-terms/page.tsx` detecteert lege voornaam en suggereert auto-extract (eerste woord van `given_name` → `name` → `full_name`, title-cased — "johnny van rhijn" → "Johnny")
+   - `accept-terms-form.tsx` toont voornaam-veld conditioneel (alleen als nodig) met suggestie als default
+   - `termsAcceptanceSchema` heeft optionele `first_name`
+   - `/api/auth/accept-terms` accepteert en slaat optionele `first_name` op
+
+4. **Google OAuth provider aangezet** — door Johnny credentials aangemaakt in Google Cloud Console (project "Invora", OAuth consent External/Testing, web client met `localhost:3000` + `obxvotpcrcdmrsxoxcjz.supabase.co` als origins). Client ID + Secret rechtstreeks via Supabase dashboard ingevuld (niet via Management API). Werkt nu end-to-end voor login + registratie.
+
+5. **Supabase Auth config gezet via Management API** — `scripts/configure-supabase-auth.mjs` schrijft idempotent: NL bevestigings- + recovery-mail templates, `uri_allow_list` met alle dev poorten + productie URLs, site_url. Vereist eenmalig een Personal Access Token (revoked na gebruik).
+
+**Aangemaakte dev-only scripts:**
+- `scripts/check-user.mjs <email>` — toont auth.users + public.users state per gebruiker
+- `scripts/apply-migration.mjs <pad>` — past SQL migratie toe via DATABASE_URL met `pg`
+- `scripts/configure-supabase-auth.mjs` — idempotent Auth config via Management API
+
+**Tests handmatige testronde (uit `TESTPLAN_FASE2.md`):**
+- Alle 20 secties doorlopen door Johnny → akkoord
+- Registratie, login, wachtwoord vergeten/reset, Google OAuth (na configuratie), onboarding, middleware-redirects, multi-user RLS, responsive design, URL-parameter mapping — allemaal geslaagd
+
+---
+
 ## FASE 0 — Accounts en externe services (MVP)
 
 > Doe dit allemaal vóór Fase 1. Geen code nodig.
@@ -259,7 +340,7 @@ Drie sub-fases (1.1 fundament, 1.2 schema, 1.3 env-check) opgeleverd in één we
 ## FASE 2 — Authenticatie en onboarding (MVP)
 *Vereist: Fase 1 afgerond*
 
-- [ ] 🤖 **2.1** Volledige authenticatie flow
+- [x] 🤖 **2.1** Volledige authenticatie flow — *afgerond 25 mei 2026*
   - **Registratiepagina** (`/register`): voornaam (verplicht) + e-mail + wachtwoord + wachtwoord bevestigen + checkbox voorwaarden (verplicht) + checkbox privacy (verplicht)
   - Voornaam wordt opgeslagen in `users.first_name` — dit is de naam die overal in de app verschijnt
   - **Google login:** voornaam automatisch overgenomen via OAuth profile (`given_name`)
@@ -273,7 +354,7 @@ Drie sub-fases (1.1 fundament, 1.2 schema, 1.3 env-check) opgeleverd in één we
   - Layout auth pagina's: gesplitst (formulier links, sage green gradient rechts met tagline) — op mobiel alleen formulier
   - **Tests:** registreer met voornaam → e-mail bevestigen → inloggen → voornaam correct opgeslagen → toegang geblokkeerd zonder auth
 
-- [ ] 🤖 **2.2** Welkomstscherm + onboarding flow
+- [x] 🤖 **2.2** Welkomstscherm + onboarding flow — *afgerond 25 mei 2026*
   - **Welkomstscherm** (`/welcome`): "Welkom bij Invora, [voornaam]!" + 2 zinnen uitleg + illustratie placeholder + knop "Account instellen"
   - Voornaam komt uit `users.first_name` — deze is al ingevuld via registratie
   - **Onboarding** (`/onboarding`):
@@ -609,7 +690,7 @@ Bij 10 klanten → M10 (iOS app)
 |------|------|--------|-------------|
 | 0 | Accounts + services | [x] | Klaar voor Fase 1. Uitgesteld: 0.1 domein (tot werkende app), 0.5b Resend domein, 0.7 Stripe (Fase 11), 0.8 UptimeRobot (Fase 13). Preview env vars: later via PAT/UI. |
 | 1 | Projectfundament | [x] | 1.1 ✅ stack. 1.2 ✅ schema + types. 1.3 ✅ env + smoke test. Klaar voor Fase 2. |
-| 2 | Auth + onboarding | [ ] | Voornaam bij registratie, handmatig adres invullen |
+| 2 | Auth + onboarding | [x] | 2.1 ✅ register/login/forgot/reset + Google + e-mail bevestiging. 2.2 ✅ welcome + 2-staps onboarding + middleware redirect. Voorwaarden/privacy als placeholder. Google OAuth credentials nog handmatig door Johnny. |
 | 3 | Dashboard + nav | [ ] | Responsive: sidebar desktop, bottomnav mobiel |
 | 4 | Cliënten + diensten | [ ] | |
 | 5 | Facturen | [ ] | Kernfeature |

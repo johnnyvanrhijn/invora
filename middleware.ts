@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import { createServerClient } from '@supabase/ssr'
 import { updateSession } from '@/lib/supabase/middleware'
+import type { Database } from '@/types/database'
 
 // Routes die authenticatie vereisen
 const PROTECTED_ROUTES = [
@@ -14,8 +16,15 @@ const PROTECTED_ROUTES = [
   '/onboarding',
 ]
 
-// Routes die alleen toegankelijk zijn voor niet-ingelogde gebruikers
-const AUTH_ROUTES = ['/login', '/register', '/forgot-password', '/reset-password']
+// Routes die niet-ingelogde gebruikers gebruiken om in te loggen / te registreren.
+// Ingelogde gebruikers die hier landen → terug naar dashboard.
+// LET OP: /reset-password niet hieronder zetten — Supabase logt de gebruiker
+// in via de reset-link, en die moet juist op de reset-pagina kunnen blijven.
+// /forgot-password idem (mag ook voor ingelogde gebruikers werken).
+const AUTH_ROUTES = ['/login', '/register']
+
+// Routes die ingelogde gebruikers mogen bereiken zonder voltooide onboarding
+const ONBOARDING_ROUTES = ['/welcome', '/onboarding']
 
 export async function middleware(request: NextRequest) {
   const { supabaseResponse, user } = await updateSession(request)
@@ -23,6 +32,7 @@ export async function middleware(request: NextRequest) {
 
   const isProtectedRoute = PROTECTED_ROUTES.some((route) => pathname.startsWith(route))
   const isAuthRoute = AUTH_ROUTES.some((route) => pathname.startsWith(route))
+  const isOnboardingRoute = ONBOARDING_ROUTES.some((route) => pathname.startsWith(route))
 
   // Niet ingelogd, probeert beveiligde route te bereiken
   if (!user && isProtectedRoute) {
@@ -34,6 +44,34 @@ export async function middleware(request: NextRequest) {
   // Ingelogd, probeert auth route te bereiken (bijv. login pagina)
   if (user && isAuthRoute) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
+  }
+
+  // Ingelogd op beveiligde, niet-onboarding route → check onboarding status
+  if (user && isProtectedRoute && !isOnboardingRoute) {
+    const supabase = createServerClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll()
+          },
+          setAll() {
+            // Leeg: we hoeven hier alleen te lezen
+          },
+        },
+      }
+    )
+
+    const { data: profile } = await supabase
+      .from('users')
+      .select('onboarding_completed')
+      .eq('id', user.id)
+      .single()
+
+    if (profile && !profile.onboarding_completed) {
+      return NextResponse.redirect(new URL('/welcome', request.url))
+    }
   }
 
   return supabaseResponse
