@@ -175,6 +175,48 @@
   }
 }
 
+/*
+ * Force light surface
+ * --------------------
+ * Een factuurapp is een werktool: dialogs, sheets en popovers moeten altijd
+ * maximaal leesbaar zijn, ook als de gebruiker zijn OS op dark mode heeft
+ * staan. Plaats `.invora-surface-light` op een DialogContent / SheetContent /
+ * DropdownMenuContent zodat de CSS variabelen in die subtree altijd de
+ * lichte waarden krijgen, ongeacht de `.dark` class op <html>.
+ *
+ * Dit override-blok is identiek aan de :root waarden in deze file.
+ */
+.invora-surface-light {
+  --background: #f9f7f4;
+  --foreground: #1a1a1a;
+  --card: #ffffff;
+  --card-foreground: #1a1a1a;
+  --popover: #ffffff;
+  --popover-foreground: #1a1a1a;
+  --primary: #7b9e87;
+  --primary-foreground: #ffffff;
+  --secondary: #efece6;
+  --secondary-foreground: #1a1a1a;
+  --muted: #efece6;
+  --muted-foreground: #6b7280;
+  --accent: #e8f2ec;
+  --accent-foreground: #3a5946;
+  --destructive: #dc2626;
+  --border: #e7e2d8;
+  --input: #e7e2d8;
+  --ring: #7b9e87;
+  color-scheme: light;
+}
+
+/* Inputs binnen geforceerd-licht oppervlak krijgen expliciet wit. */
+.invora-surface-light input,
+.invora-surface-light textarea,
+.invora-surface-light select,
+.invora-surface-light [data-slot='select-trigger'] {
+  background-color: #ffffff;
+  color: #1a1a1a;
+}
+
 @layer utilities {
   .scrollbar-hide {
     -ms-overflow-style: none;
