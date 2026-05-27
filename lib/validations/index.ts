@@ -154,3 +154,92 @@ export const onboardingStep2Schema = z.object({
 })
 
 export type OnboardingStep2Data = z.infer<typeof onboardingStep2Schema>
+
+// ─── Cliënten ───────────────────────────────────────────────────────────────
+
+// Cliënt aanmaken/bewerken validatie
+export const clientSchema = z.object({
+  type: z.enum(['particulier', 'zakelijk']),
+  name: z
+    .string()
+    .min(1, { message: 'Naam is verplicht' })
+    .max(100, { message: 'Naam mag maximaal 100 tekens bevatten' })
+    .trim(),
+  email: emailSchema,
+  phone: z.string().max(20).trim().optional().or(z.literal('')),
+
+  // Bezoekadres
+  address_street: z.string().max(100).trim().optional().or(z.literal('')),
+  address_postal_code: z.string().max(10).trim().optional().or(z.literal('')),
+  address_city: z.string().max(100).trim().optional().or(z.literal('')),
+  address_country: z.string().default('NL'),
+
+  // Optioneel voor alle types
+  billing_email: emailSchema.optional().or(z.literal('')),
+  category: z.enum(['actief', 'inactief', 'vip']).default('actief'),
+  default_service_id: z.string().uuid().optional().nullable(),
+  discount_type: z.enum(['percentage', 'fixed']).optional().nullable(),
+  discount_value: z.number().min(0).optional().nullable(),
+  administrative_note: z.string().max(500).trim().optional().or(z.literal('')),
+
+  // Alleen zakelijk
+  company_kvk_number: z
+    .string()
+    .max(8)
+    .trim()
+    .optional()
+    .or(z.literal('')),
+  btw_number: z.string().max(20).trim().optional().or(z.literal('')),
+  payment_term_days: z.number().int().min(1).max(365).optional().nullable(),
+  contact_name: z.string().max(100).trim().optional().or(z.literal('')),
+  contact_email: emailSchema.optional().or(z.literal('')),
+  billing_address_street: z.string().max(100).trim().optional().or(z.literal('')),
+  billing_address_postal_code: z.string().max(10).trim().optional().or(z.literal('')),
+  billing_address_city: z.string().max(100).trim().optional().or(z.literal('')),
+})
+
+export type ClientFormData = z.infer<typeof clientSchema>
+
+// CSV import rij — minimaal: naam + email
+export const csvClientRowSchema = z.object({
+  naam: z.string().min(1).max(100).trim(),
+  email: z.string().email().toLowerCase(),
+  telefoon: z.string().max(20).trim().optional().or(z.literal('')),
+  straat: z.string().max(100).trim().optional().or(z.literal('')),
+  postcode: z.string().max(10).trim().optional().or(z.literal('')),
+  stad: z.string().max(100).trim().optional().or(z.literal('')),
+  type: z.enum(['particulier', 'zakelijk']).default('particulier'),
+})
+
+export type CsvClientRow = z.infer<typeof csvClientRowSchema>
+
+// ─── Diensten ───────────────────────────────────────────────────────────────
+
+export const serviceSchema = z.object({
+  name: z
+    .string()
+    .min(1, { message: 'Naam is verplicht' })
+    .max(100, { message: 'Naam mag maximaal 100 tekens bevatten' })
+    .trim(),
+  description: z.string().max(500).trim().optional().or(z.literal('')),
+  price: z.number().min(0, { message: 'Prijs moet 0 of hoger zijn' }),
+  price_type: z.enum(['fixed', 'hourly']),
+  category: z.string().max(50).trim().optional().or(z.literal('')),
+})
+
+export type ServiceFormData = z.infer<typeof serviceSchema>
+
+// ─── Bulk acties ────────────────────────────────────────────────────────────
+
+export const bulkActionSchema = z.object({
+  action: z.enum(['archive', 'unarchive', 'delete']),
+  ids: z.array(z.string().uuid()).min(1, { message: 'Selecteer minimaal één item' }),
+})
+
+export type BulkActionData = z.infer<typeof bulkActionSchema>
+
+export const archiveSchema = z.object({
+  archived: z.boolean(),
+})
+
+export type ArchiveData = z.infer<typeof archiveSchema>

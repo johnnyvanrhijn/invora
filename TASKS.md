@@ -1,6 +1,6 @@
 # TASKS.md — Invora Takenlijst
 *Bijgehouden gedurende het gehele project. Altijd up-to-date houden.*
-*Laatste update: 25 mei 2026*
+*Laatste update: 27 mei 2026*
 
 ## Status
 - `[ ]` Nog niet gestart
@@ -290,6 +290,79 @@ Tijdens het uitrollen naar productie liepen we tegen twee gecombineerde probleme
 
 ---
 
+### Fase 4 — Cliënten en diensten *(afgerond 27 mei 2026)*
+
+**Wat is gebouwd:**
+
+*Cliënten*
+- **API routes** (alle `getUser()` + Zod-gevalideerd, iOS-ready):
+  - `GET/POST /api/clients` — gepagineerde lijst (20/pagina, `count: 'exact'`), filter op `category` (alle/actief/inactief/vip/archived), zoek op naam+email via `or(name.ilike,email.ilike)` met escapen van `%/_`, sortering alfabetisch. POST doet duplicate-check op e-mail en retourneert 409 met `{ duplicate: true, existingName }` tenzij `force: true`
+  - `GET/PUT/DELETE /api/clients/[id]` — DELETE blokkeert bij openstaande facturen (status verstuurd/te_laat) met 409 `{ hasOpenInvoices: true }`
+  - `POST /api/clients/[id]/archive` — set archived flag + archived_at
+  - `POST /api/clients/bulk` — archive/unarchive/delete in één call, retourneert `{ processed, skipped, skippedIds, reason? }`. Delete slaat cliënten met openstaande facturen automatisch over
+  - `POST /api/clients/import` — multipart upload, gebruikt `papaparse` server-side, valideert met `csvClientRowSchema`, skipt duplicaten
+  - `GET /api/clients/export` — CSV met UTF-8 BOM, Nederlandse kolomnamen, inclusief omzet + sessies + laatste factuurdatum
+  - `GET /api/clients/check-email?email=&exclude_id=` — aparte route voor onBlur duplicaat detectie
+- **`lib/clients/stats.ts`** — helpers `getClientListStats` (lijst), `getClientDetailStats` (slide-over), `getServiceNamesByIds`. Aparte queries i.p.v. Supabase nested JOIN (gekozen optie). Geeft 0/null terug zolang `invoices`/`time_entries` nog leeg zijn — geen Fase 5/7 dependency
+- **Pagina** `app/(app)/clienten/page.tsx` (server wrapper) + `clienten-client.tsx` (volledige UI)
+- **UI features:** zoekbalk met 300ms debounce, filter dropdown (5 opties), bulk action bar bij selectie, skeleton tijdens laden, lege staat met CTA, paginering met "Pagina X van Y" + total count
+- **Tabel:** sticky header, zebra `even:bg-invora-background/30`, gearchiveerd `opacity-60` + `[GEARCHIVEERD]` label, klikbare naam → slide-over, drie-puntjes menu (Lucide `MoreHorizontal`) met 6 acties contextafhankelijk
+- **`ClientDetailSheet`** — `Sheet` van rechts, breedte 480px desktop / full mobile, drie blokken: basisgegevens, statistieken (3 mini-kaarten), activiteitslog met gekleurde bolletjes per event type
+- **`ClientFormDialog`** — `Dialog` max-w-2xl, controlled state (zonder react-hook-form voor token-efficiency). Acht secties: type-toggle, basis, adres, zakelijk (conditioneel met `transition-all`), facturatie voorkeuren, korting (toggle + percentage/fixed), categorie, administratieve notitie met tellertje. Bij zakelijk wordt `name` label `Bedrijfsnaam` (gekozen optie — geen schemawijziging)
+- **Duplicaat detectie:** onBlur op e-mailveld → `/api/clients/check-email` → gele warning banner. Bij submit retourneert API 409 met `duplicate: true` → `window.confirm()` → optioneel `{force: true}` opnieuw sturen
+- **`CsvImportModal`** — drag-zone (click), template download (met BOM), client-side preview via papaparse, validatie per rij (groen ✓ / rood ✗ met error), max 10 rijen preview, bij import via FormData naar `/api/clients/import`, eindscherm met `imported/skipped/errors`
+
+*Diensten*
+- **API routes:**
+  - `GET/POST /api/services` — lijst sorteert op `usage_count DESC` dan `name ASC`, optioneel `include_archived=true`
+  - `PUT/DELETE /api/services/[id]` — invoice_lines.service_id is ON DELETE SET NULL (historische regels behouden tekst+prijs)
+  - `POST /api/services/[id]/archive` + `POST /api/services/bulk`
+- **`lib/services/stats.ts`** — `getServiceRevenueMap`: omzet per service via `invoice_lines` JOIN op betaalde `invoices`. 0 zolang Fase 5 nog niet bestaat
+- **Pagina** `app/(app)/diensten/page.tsx` + `diensten-client.tsx`
+- **Statistieken kaarten:** "Meest gebruikt" (eerste service met `usage_count > 0`) + "Hoogste omzet" (gesorteerd op total_revenue)
+- **`ServiceFormDialog`** — `Dialog` max-w-md, simpel: naam, omschrijving (textarea), prijstype toggle, prijs (numeriek met € prefix + "per uur" suffix bij hourly), categorie. AVG-bewuste subtext bij omschrijvingveld
+
+*Gedeelde componenten*
+- **`ConfirmDialog`** — herbruikbaar voor alle bevestigingen. Gebruikt `Dialog` ipv `AlertDialog` (niet geïnstalleerd). Variant `destructive` voor verwijderen
+- **`BulkActionBar`** — generiek voor cliënten + diensten, geeft archive/unarchive (afhankelijk van view), verwijderen en sluiten
+
+*Validatieschema's + types*
+- `clientSchema`, `serviceSchema`, `csvClientRowSchema`, `bulkActionSchema`, `archiveSchema` toegevoegd aan `lib/validations/index.ts`
+- `ClientWithStats`, `ClientListItem`, `Service`, `ActivityLogEntry`, `PaginatedResult` toegevoegd aan `types/index.ts`
+
+**Keuzes gemaakt (na vraagstelling aan Johnny):**
+1. **Statistieken in lijst:** tonen met `0` / `—` nu, vullen automatisch wanneer Fase 5 + Fase 7 hun data leveren. Geen rework nodig. (Optie 1)
+2. **PDF export:** **bewust overgeslagen in Fase 4** — alleen CSV-export, één knop ipv dropdown. PDF komt in Fase 5 of later wanneer Puppeteer al geïnstalleerd is. (Optie 3)
+3. **Bedrijfsnaam bij zakelijk:** geen schemawijziging — bij zakelijk wordt het label `Naam` automatisch `Bedrijfsnaam` (alleen UI). Contactpersoon via bestaand `contact_name`. (Optie 1)
+4. **Activity log:** geen cliënt-CRUD events. `activity_log` blijft puur factuur/betaling-events conform INVORA_CONTEXT.md. (Optie 1)
+5. **Query strategie:** aparte queries voor statistieken (lijst + slide-over) ipv Supabase nested JOIN met expliciete FK-naam. Voorspelbaarder en makkelijker debuggen. (Optie 1)
+6. **Filter 'Alle':** = niet-gearchiveerd, alle categorieën. 'Gearchiveerd' is een aparte view. Linear/Notion-patroon. (Optie 1)
+7. **Duplicate check:** aparte route `/api/clients/check-email` voor onBlur. Voor submit zit logica in POST/PUT zelf (409 response). (Optie 1)
+
+**Afwijkingen van plan:**
+- **`window.confirm()` voor duplicate-doorzetten** in client-form — een tweede confirm dialog binnen het formulier overlapt visueel met de `Dialog` zelf in base-ui. Native `confirm` is pragmatisch; vervangbaar in Fase 12 polish.
+- **AlertDialog niet beschikbaar** in shadcn `base-nova` registry — `ConfirmDialog` gebouwd bovenop `Dialog`. Identieke UX, één component minder om te onderhouden.
+- **`papaparse` toegevoegd** als runtime dep (+ `@types/papaparse` als dep, niet devDep — wordt direct geïmporteerd in een server route). Geen alternatief in stdlib zonder zelf een CSV-parser te schrijven.
+
+**Tests:**
+- `npx tsc --noEmit` → 0 fouten
+- `npm run lint` → schoon
+- `npm run build` → 36 routes (was 26), `/clienten` 31.6 kB, `/diensten` 4.93 kB, alle 11 nieuwe API routes succesvol
+- **`scripts/test-clients-services.mjs`** (10/10 ✓): 2 testgebruikers → cliënt + dienst aanmaken via service_role → RLS check (user B ziet niets) → user A ziet eigen data via anon+signIn → archive flag werkt → duplicate insert op DB-niveau mogelijk (check zit in app)
+- HTTP smoke via dev server (curl): `/api/clients` zonder auth → 401, `/api/clients/check-email` → 401, `/api/clients/export` → 401, `/api/services` → 401, `/api/clients/bulk` POST → 401, `/api/services/bulk` POST → 401, `/clienten` → 307 → `/login`, `/diensten` → 307 → `/login`
+- **Visuele tests** (formulier rendering, slide-over animatie, responsive tabel, CSV preview) staan in het handmatig testplan voor Johnny — vereist browser
+
+**Handmatige acties voor Johnny:**
+1. **Browser-test** beide pagina's: cliënt aanmaken (particulier + zakelijk), bewerken, archiveren, verwijderen; dienst aanmaken, prijstype toggle, archiveren. Test CSV import met de meegeleverde template.
+2. **Optioneel: `redirectTo=`** voor cliënten/diensten — bij niet-ingelogd op `/clienten` redirect je nu naar `/login` zonder `?redirectTo=`. Bekende beperking sinds Fase 3.
+
+**Nieuwe taken (toegevoegd):**
+- Cliënten/diensten zijn **klaar voor Fase 5**. Factuurformulier kan direct cliënt-autocomplete (op `/api/clients?search=`) en dienst-suggesties (op `/api/services`) gebruiken.
+- `default_service_id` voor cliënt is voorbereid — bij Fase 5 wordt deze automatisch geselecteerd in de factuurregel.
+- `clients.payment_term_days` voor zakelijke cliënten wordt in Fase 5 gebruikt om vervaldatum te berekenen.
+
+---
+
 ## FASE 0 — Accounts en externe services (MVP)
 
 > Doe dit allemaal vóór Fase 1. Geen code nodig.
@@ -476,7 +549,7 @@ Tijdens het uitrollen naar productie liepen we tegen twee gecombineerde probleme
 ## FASE 4 — Cliënten en diensten (MVP)
 *Vereist: Fase 3 afgerond*
 
-- [ ] 🤖 **4.1** Volledig cliëntenbeheer
+- [x] 🤖 **4.1** Volledig cliëntenbeheer — *afgerond 27 mei 2026*
   - Cliëntenoverzicht: zoekbalk (instant op naam/e-mail), filter (Alle/Actief/Inactief/VIP/Gearchiveerd), alfabetische sortering
   - Lijstweergave: zebra patroon, sticky kolomkoppen (Naam | Categorie | Sessies | Omzet | Laatste factuur)
   - Drie puntjes menu per rij: Nieuwe factuur, Uren registreren, Bewerken, Archiveren, Verwijderen
@@ -497,7 +570,7 @@ Tijdens het uitrollen naar productie liepen we tegen twee gecombineerde probleme
   - CSV import + CSV export + PDF export
   - **Tests:** aanmaken particulier + zakelijk, duplicaat detectie, alle CRUD acties, RLS check
 
-- [ ] 🤖 **4.2** Diensten bibliotheek
+- [x] 🤖 **4.2** Diensten bibliotheek — *afgerond 27 mei 2026*
   - Overzicht gesorteerd op usage_count DESC
   - Aanmaken/bewerken: naam + omschrijving + prijs + type (fixed/hourly) + categorie
   - Statistieken bovenaan: meest gebruikt + hoogste omzet
