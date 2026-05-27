@@ -1,6 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
-import { updateSession } from '@/lib/supabase/middleware'
 import type { Database } from '@/types/database'
 
 // Routes die authenticatie vereisen
@@ -27,9 +26,36 @@ const AUTH_ROUTES = ['/login', '/register']
 const ONBOARDING_ROUTES = ['/welcome', '/onboarding']
 
 export async function middleware(request: NextRequest) {
-  const { supabaseResponse, user } = await updateSession(request)
-  const pathname = request.nextUrl.pathname
+  let supabaseResponse = NextResponse.next({ request })
 
+  // Inline om path-alias import te vermijden — Vercel bundelt path-alias
+  // imports niet correct voor de Edge-middleware container.
+  const supabase = createServerClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+          supabaseResponse = NextResponse.next({ request })
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
+          )
+        },
+      },
+    }
+  )
+
+  // getUser() — cruciaal voor server-side auth (getSession is niet veilig
+  // omdat het de cookie waarde direct teruggeeft zonder verificatie).
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const pathname = request.nextUrl.pathname
   const isProtectedRoute = PROTECTED_ROUTES.some((route) => pathname.startsWith(route))
   const isAuthRoute = AUTH_ROUTES.some((route) => pathname.startsWith(route))
   const isOnboardingRoute = ONBOARDING_ROUTES.some((route) => pathname.startsWith(route))
@@ -48,21 +74,6 @@ export async function middleware(request: NextRequest) {
 
   // Ingelogd op beveiligde, niet-onboarding route → check onboarding status
   if (user && isProtectedRoute && !isOnboardingRoute) {
-    const supabase = createServerClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return request.cookies.getAll()
-          },
-          setAll() {
-            // Leeg: we hoeven hier alleen te lezen
-          },
-        },
-      }
-    )
-
     const { data: profile } = await supabase
       .from('users')
       .select('onboarding_completed')
