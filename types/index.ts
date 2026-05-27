@@ -55,3 +55,28 @@ export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   herinnering_verstuurd: { push: false, email: true },
   stornering: { push: true, email: true },
 }
+
+// Dashboard statistieken (response van get_dashboard_stats Supabase RPC).
+// De DB returnt Engelse maandafkortingen voor maand_kort — de UI bouwt
+// de Nederlandse afkortingen zelf op basis van het YYYY-MM formaat.
+export interface DashboardLatestInvoice {
+  id: string
+  invoice_number: string
+  total: number
+  status: InvoiceStatus
+  issue_date: string
+  client_name: string | null
+}
+
+export interface DashboardMonthlyRevenue {
+  maand: string // Formaat: "2024-01"
+  maand_kort: string // Database geeft Engels — UI vervangt door NL
+  omzet: number
+}
+
+export interface DashboardStats {
+  omzet_deze_maand: number
+  openstaand_bedrag: number
+  laatste_facturen: DashboardLatestInvoice[]
+  omzet_per_maand: DashboardMonthlyRevenue[]
+}

@@ -1,8 +1,13 @@
+import type { Metadata } from 'next'
+import { ComingSoon } from '@/components/app/coming-soon'
+
+export const metadata: Metadata = { title: 'Instellingen' }
+
 export default function InstellingenPage() {
   return (
-    <div className="p-8">
-      <h1 className="text-invora-text text-2xl font-bold">Instellingen</h1>
-      <p className="text-invora-text-muted">Wordt gebouwd in Fase 9</p>
-    </div>
+    <ComingSoon
+      title="Instellingen"
+      description="Account en factuurinstellingen. Wordt gebouwd in Fase 9."
+    />
   )
 }

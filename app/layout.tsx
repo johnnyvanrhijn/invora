@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import { Plus_Jakarta_Sans } from 'next/font/google'
 import { Toaster } from '@/components/ui/sonner'
+import { ThemeProvider } from '@/components/theme-provider'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import './globals.css'
 
 const plusJakartaSans = Plus_Jakarta_Sans({
@@ -22,8 +24,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="nl" suppressHydrationWarning>
       <body className={`${plusJakartaSans.variable} font-sans antialiased`}>
-        {children}
-        <Toaster richColors closeButton />
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <TooltipProvider delay={150}>
+            {children}
+            <Toaster richColors closeButton />
+          </TooltipProvider>
+        </ThemeProvider>
       </body>
     </html>
   )

@@ -1,8 +1,13 @@
+import type { Metadata } from 'next'
+import { ComingSoon } from '@/components/app/coming-soon'
+
+export const metadata: Metadata = { title: 'Rapporten' }
+
 export default function RapportenPage() {
   return (
-    <div className="p-8">
-      <h1 className="text-invora-text text-2xl font-bold">Rapporten</h1>
-      <p className="text-invora-text-muted">Wordt gebouwd in Fase 8</p>
-    </div>
+    <ComingSoon
+      title="Rapporten"
+      description="Omzet en urenrapporten. Wordt gebouwd in Fase 10."
+    />
   )
 }

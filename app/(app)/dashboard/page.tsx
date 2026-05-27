@@ -1,8 +1,27 @@
-export default function DashboardPage() {
-  return (
-    <div className="p-8">
-      <h1 className="text-invora-text text-2xl font-bold">Dashboard</h1>
-      <p className="text-invora-text-muted">Wordt gebouwd in Fase 3</p>
-    </div>
-  )
+import { redirect } from 'next/navigation'
+import type { Metadata } from 'next'
+import { createClient } from '@/lib/supabase/server'
+import { DashboardClient } from './dashboard-client'
+
+export const metadata: Metadata = {
+  title: 'Dashboard',
+}
+
+export default async function DashboardPage() {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: profile } = await supabase
+    .from('users')
+    .select('first_name')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile) redirect('/login')
+
+  return <DashboardClient firstName={profile.first_name} />
 }

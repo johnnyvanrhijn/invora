@@ -242,6 +242,54 @@ Tijdens het uitrollen naar productie liepen we tegen twee gecombineerde probleme
 
 ---
 
+### Fase 3 — Dashboard en navigatie *(afgerond 27 mei 2026)*
+
+**Wat is gebouwd:**
+- **App layout** (`app/(app)/layout.tsx`) — auth + onboarding-check, leest sidebar-cookie, geeft profile-velden door aan banner + sidebar
+- **Sidebar** (`components/app/app-sidebar.tsx`) — client component met inklap-toggle, actieve route detectie via `usePathname()`, cookie-persistentie via `/api/sidebar`. Collapsed state toont initialen + logout-icoon onder elkaar, beide met tooltip. Lucide-iconen + base-ui tooltip
+- **BottomNav** (`components/app/bottom-nav.tsx`) — fixed bottom, 5 items, centrale verhoogde sage green gradient "Nieuw" knop, safe-area padding voor iOS, alleen `< lg` zichtbaar
+- **SubscriptionBanner** (`components/app/subscription-banner.tsx`) — toont oranje warning-banner bij `trial_expired`/`cancelled`, lichte amber-banner bij trial die binnen 5 dagen verloopt (dismissable via sessionStorage). Render `null` als geen actie nodig
+- **Dashboard API** (`app/api/dashboard/stats/route.ts`) — wrapt de bestaande `get_dashboard_stats` Supabase RPC, auth-check via `getUser()`
+- **Dashboard page** (server-component wrapper) + **dashboard-client.tsx** (client met fetch + skeleton/error states)
+- **UI componenten in `components/app/dashboard/`**: greeting (tijdgebaseerd), kpi-cards (3 kaarten + RecentInvoicesCard), revenue-chart (Recharts BarChart met sage-gradient en NL maandafkortingen), empty-state (SVG figuur die naar CTA wijst), skeleton (3 cards + chart), coach-mark (mobile + desktop varianten met DOM-position tracking)
+- **StatusBadge** (`components/app/status-badge.tsx`) — herbruikbaar voor alle 5 `InvoiceStatus` types, klaar voor Fase 5
+- **Onboarding form** (`app/(onboarding)/onboarding/onboarding-form.tsx`) — redirect naar `/dashboard?coach=true` na stap 2 (was `/dashboard`)
+- **ComingSoon component** + placeholders voor `/facturen` (+ `/facturen/nieuw`), `/clienten`, `/uren`, `/diensten`, `/rapporten`, `/instellingen`
+- **Loading + error states** voor `(app)` route group + `dashboard/loading.tsx` met `DashboardSkeleton`
+- **ThemeProvider** (`components/theme-provider.tsx`) en **TooltipProvider** toegevoegd in root layout — dark mode volgt systeemvoorkeur, geen toggle in UI
+
+**Sidebar persistentie:**
+- Cookie `invora_sidebar_collapsed` (1 jaar TTL, lax, niet-httpOnly zodat client desnoods ook kan lezen)
+- Helper in `lib/sidebar.ts` + `POST /api/sidebar` zet de cookie
+- Server-side gelezen in app layout → `defaultCollapsed` prop → geen layout-shift bij refresh
+
+**Coach mark logica:**
+- `useCoachMark()` hook leest `?coach=true` URL parameter, checkt `localStorage.invora_coach_mark_seen`, verwijdert `?coach=true` uit URL na show
+- 10 seconden auto-dismiss
+- `MobileCoachMark`: ring rondom centrale Nieuw-knop in bottomnav (alleen `< lg`)
+- `DesktopCoachMark`: ring rondom DOM-element met gegeven `targetId` (default: `empty-state-cta`), positioneert via `getBoundingClientRect()` met resize/scroll listeners
+
+**Afwijkingen van plan / keuzes (na vraagstelling):**
+- **Lees-only modus alleen banner, geen API blokkering** (gekozen optie 1) — POST/PUT/DELETE blokkering komt in Fase 11 zodra Stripe webhook events bestaan om de status te wijzigen, en zodra latere fases mutatie-routes hebben om te blokkeren
+- **Dark mode via ThemeProvider met system preference** (gekozen optie 1) — geen UI-toggle in deze fase, CSS-tokens voor `.dark` waren al klaar in `app/globals.css`
+- **Sidebar collapsed: initialen + logout onder elkaar** (gekozen optie 1) — Slack/Linear-patroon, één klik om uit te loggen ook in collapsed mode
+- **`tailwind.config.ts` bestaat niet** — we gebruiken Tailwind v4 met `@theme` in `app/globals.css`. `animate-pulse-ring` keyframe staat daar al sinds Fase 1.1, geen aanpassing nodig
+- **Onboarding form locatie** — prompt verwees naar `app/(app)/onboarding/`, in Fase 2 hadden we het verplaatst naar `app/(onboarding)/onboarding/`. Daar de redirect aangepast
+- **Recharts maand_kort** — DB returnt Engelse afkortingen (Jan/Feb/...), frontend overschrijft met NL afkortingen (`Mrt/Mei/Okt`) via een lokale array in `revenue-chart.tsx`
+- **Auth-redirect zonder `redirectTo=`** — bekende beperking. Zonder middleware kent de server-component layout de huidige pathname niet automatisch. Bij niet-ingelogd op `/facturen` redirect nu naar `/login` (geen param), na inloggen land je op `/dashboard` ipv `/facturen`. Acceptabel voor MVP, oplosbaar met `next-url` header parsing of een nieuwe minimal middleware als het nodig wordt
+
+**Tests:**
+- `npx tsc --noEmit` → 0 fouten
+- `npm run lint` → schoon
+- `npm run build` → 26 routes, dashboard route 115 kB (Recharts), middleware-bundle 0 kB (geen middleware)
+- HTTP smoke lokaal: `/` 200, `/login` 200, `/dashboard` zonder auth → 307 `/login`, `/api/dashboard/stats` zonder auth → 401, `/api/sidebar` POST → 200
+- Visuele tests (sidebar animatie, coach mark, responsive, dark mode) staan in handmatig testplan voor Johnny — niet automatisch te valideren
+
+**Nieuwe taken (toegevoegd):**
+- Geen nieuwe TASKS.md items. `redirectTo=` parameter herstellen is geen blocker voor Fase 4, kan tegelijk met Fase 11 (lees-only blokkering) als beide ingrijpen op de middleware-laag
+
+---
+
 ## FASE 0 — Accounts en externe services (MVP)
 
 > Doe dit allemaal vóór Fase 1. Geen code nodig.
@@ -398,7 +446,7 @@ Tijdens het uitrollen naar productie liepen we tegen twee gecombineerde probleme
 ## FASE 3 — Dashboard en navigatie (MVP)
 *Vereist: Fase 2 afgerond*
 
-- [ ] 🤖 **3.1** Hoofdlayout + navigatie + dashboard
+- [x] 🤖 **3.1** Hoofdlayout + navigatie + dashboard — *afgerond 27 mei 2026*
   - **Sidebar (desktop >1024px):**
     - Breedte: 240px uitgeklapt / 64px ingeklapt
     - Inklapknop bovenaan
@@ -716,7 +764,7 @@ Bij 10 klanten → M10 (iOS app)
 | 0 | Accounts + services | [x] | Klaar voor Fase 1. Uitgesteld: 0.1 domein (tot werkende app), 0.5b Resend domein, 0.7 Stripe (Fase 11), 0.8 UptimeRobot (Fase 13). Preview env vars: later via PAT/UI. |
 | 1 | Projectfundament | [x] | 1.1 ✅ stack. 1.2 ✅ schema + types. 1.3 ✅ env + smoke test. Klaar voor Fase 2. |
 | 2 | Auth + onboarding | [x] | 2.1 ✅ register/login/forgot/reset + Google + e-mail bevestiging. 2.2 ✅ welcome + 2-staps onboarding + middleware redirect. Voorwaarden/privacy als placeholder. Google OAuth credentials nog handmatig door Johnny. |
-| 3 | Dashboard + nav | [ ] | Responsive: sidebar desktop, bottomnav mobiel |
+| 3 | Dashboard + nav | [x] | 3.1 ✅ sidebar desktop, bottomnav mobiel, dashboard met KPIs + grafiek, coach mark, dark mode via system. Lees-only blokkering uitgesteld naar Fase 11. |
 | 4 | Cliënten + diensten | [ ] | |
 | 5 | Facturen | [ ] | Kernfeature |
 | 6 | Mollie | [ ] | |

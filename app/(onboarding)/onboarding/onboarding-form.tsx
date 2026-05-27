@@ -93,7 +93,8 @@ export function OnboardingForm() {
       return
     }
 
-    router.push('/dashboard')
+    // ?coach=true triggert de coach mark op het dashboard (Fase 3)
+    router.push('/dashboard?coach=true')
     router.refresh()
   }
 
