@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getSidebarCollapsedFromCookie, SIDEBAR_COOKIE_NAME } from '@/lib/sidebar'
 import { AppSidebar } from '@/components/app/app-sidebar'
 import { BottomNav } from '@/components/app/bottom-nav'
+import { MobileLayoutWrapper } from '@/components/app/mobile-layout-wrapper'
 import { SubscriptionBanner } from '@/components/app/subscription-banner'
 
 const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000
@@ -50,6 +51,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <AppSidebar firstName={profile.first_name} defaultCollapsed={defaultCollapsed} />
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <MobileLayoutWrapper firstName={profile.first_name} />
+
         <SubscriptionBanner
           isReadOnly={isReadOnly}
           trialEndsSoon={trialEndsSoon}

@@ -36,10 +36,12 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { BulkActionBar } from '@/components/app/bulk-action-bar'
 import { ConfirmDialog } from '@/components/app/confirm-dialog'
+import { FilterChips } from '@/components/app/filter-chips'
 import { ClientCategoryBadge } from '@/components/app/clients/client-category-badge'
 import { ClientDetailSheet } from '@/components/app/clients/client-detail-sheet'
 import { ClientFormDialog } from '@/components/app/clients/client-form'
 import { CsvImportModal } from '@/components/app/clients/csv-import-modal'
+import { MobileClientList } from '@/components/app/clients/mobile-client-list'
 import { cn, formatCurrency, formatDateShort } from '@/lib/utils'
 import { DEFAULT_PAGE_SIZE } from '@/lib/constants'
 import type { ClientListItem, ClientWithStats, PaginatedResult } from '@/types'
@@ -229,7 +231,9 @@ export function ClientenClient() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="font-heading text-2xl font-semibold">Cliënten</h1>
+        <h1 className="font-heading hidden text-2xl font-semibold lg:block">
+          Cliënten
+        </h1>
         <div className="flex flex-wrap gap-2">
           <Button
             variant="ghost"
@@ -280,38 +284,100 @@ export function ClientenClient() {
           onClear={() => setSelectedIds(new Set())}
         />
       ) : (
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative">
-            <Search className="text-muted-foreground pointer-events-none absolute top-2 left-2 size-4" />
-            <Input
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Zoek op naam of e-mail"
-              className="w-64 pl-8"
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative w-full sm:w-64">
+              <Search className="text-muted-foreground pointer-events-none absolute top-2 left-2 size-4" />
+              <Input
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Zoek op naam of e-mail"
+                className="bg-background w-full pl-8"
+              />
+            </div>
+            {/* Desktop: dropdown */}
+            <div className="hidden lg:block">
+              <Select
+                value={categoryFilter}
+                onValueChange={(v) => {
+                  setCategoryFilter(v as CategoryFilter)
+                  setPage(1)
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CATEGORY_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          {/* Mobiel: chip-rij */}
+          <div className="lg:hidden">
+            <FilterChips
+              value={categoryFilter}
+              options={CATEGORY_OPTIONS}
+              onChange={(v) => {
+                setCategoryFilter(v)
+                setPage(1)
+              }}
             />
           </div>
-          <Select
-            value={categoryFilter}
-            onValueChange={(v) => {
-              setCategoryFilter(v as CategoryFilter)
-              setPage(1)
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {CATEGORY_OPTIONS.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
         </div>
       )}
 
-      <div className="bg-invora-surface rounded-card overflow-hidden border">
+      {/* Mobiel: simpele lijstweergave */}
+      <div className="lg:hidden">
+        <MobileClientList
+          clients={clients}
+          isLoading={isLoading}
+          selectedIds={selectedIds}
+          search={search}
+          showArchived={showArchived}
+          onToggleSelect={toggleRow}
+          onOpenDetail={(id) => setSlideOverClientId(id)}
+          onEdit={(id) => void openEdit(id)}
+          onArchive={(client) => void archiveOne(client)}
+          onDelete={(client) => setRowConfirmDelete(client)}
+          onCreateNew={() => {
+            setEditingClient(null)
+            setIsFormOpen(true)
+          }}
+        />
+        {!isLoading && total > 0 && (
+          <div className="text-muted-foreground flex items-center justify-between px-1 pt-3 text-xs">
+            <span>
+              Pagina {page} van {totalPages} · {total}
+            </span>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+              >
+                Vorige
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+              >
+                Volgende
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Desktop: tabel */}
+      <div className="bg-invora-surface rounded-card hidden overflow-hidden border lg:block">
         {/* Tabel met horizontale scroll op mobiel */}
         <div className="overflow-x-auto">
           <table className="w-full min-w-[680px] text-sm">

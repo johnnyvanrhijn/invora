@@ -18,6 +18,13 @@ import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -26,19 +33,31 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { BulkActionBar } from '@/components/app/bulk-action-bar'
 import { ConfirmDialog } from '@/components/app/confirm-dialog'
+import { FilterChips } from '@/components/app/filter-chips'
 import { ServiceFormDialog } from '@/components/app/services/service-form'
+import { ServiceDetailSheet } from '@/components/app/services/service-detail-sheet'
+import { MobileServiceList } from '@/components/app/services/mobile-service-list'
 import { cn, formatCurrency } from '@/lib/utils'
 import type { Service } from '@/types'
+
+type ServiceFilter = 'alle' | 'archived'
+
+const SERVICE_FILTER_OPTIONS: { value: ServiceFilter; label: string }[] = [
+  { value: 'alle', label: 'Alle' },
+  { value: 'archived', label: 'Gearchiveerd' },
+]
 
 export function DienstenClient() {
   const [services, setServices] = useState<Service[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
-  const [includeArchived, setIncludeArchived] = useState(false)
+  const [serviceFilter, setServiceFilter] = useState<ServiceFilter>('alle')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingService, setEditingService] = useState<Service | null>(null)
+  const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null)
+  const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [rowConfirmDelete, setRowConfirmDelete] = useState<Service | null>(null)
   const [bulkConfirm, setBulkConfirm] = useState<null | {
     action: 'archive' | 'unarchive' | 'delete'
@@ -56,13 +75,21 @@ export function DienstenClient() {
     try {
       const params = new URLSearchParams()
       if (search) params.set('search', search)
-      params.set('include_archived', String(includeArchived))
+      // 'archived' view → alleen gearchiveerd, 'alle' → alleen actief
+      params.set('include_archived', String(serviceFilter === 'archived'))
       const res = await fetch(`/api/services?${params.toString()}`, {
         cache: 'no-store',
       })
       if (!res.ok) throw new Error('Laden mislukt')
       const data = (await res.json()) as { services: Service[] }
-      setServices(data.services)
+      // Filter client-side op archived view: API geeft alles + gearchiveerd
+      // mee bij include_archived=true; in 'archived' view tonen we alleen
+      // gearchiveerd, in 'alle' view alleen niet-gearchiveerd
+      const filtered =
+        serviceFilter === 'archived'
+          ? data.services.filter((s) => s.archived)
+          : data.services.filter((s) => !s.archived)
+      setServices(filtered)
       setSelectedIds(new Set())
     } catch (err) {
       console.error(err)
@@ -70,7 +97,7 @@ export function DienstenClient() {
     } finally {
       setIsLoading(false)
     }
-  }, [search, includeArchived])
+  }, [search, serviceFilter])
 
   useEffect(() => {
     void loadServices()
@@ -168,7 +195,9 @@ export function DienstenClient() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="font-heading text-2xl font-semibold">Diensten</h1>
+        <h1 className="font-heading hidden text-2xl font-semibold lg:block">
+          Diensten
+        </h1>
         <Button
           size="sm"
           onClick={() => {
@@ -207,8 +236,12 @@ export function DienstenClient() {
           count={selectedIds.size}
           itemLabel="dienst"
           pluralLabel="diensten"
+          showUnarchive={serviceFilter === 'archived'}
           onArchive={() =>
             setBulkConfirm({ action: 'archive', count: selectedIds.size })
+          }
+          onUnarchive={() =>
+            setBulkConfirm({ action: 'unarchive', count: selectedIds.size })
           }
           onDelete={() =>
             setBulkConfirm({ action: 'delete', count: selectedIds.size })
@@ -216,30 +249,73 @@ export function DienstenClient() {
           onClear={() => setSelectedIds(new Set())}
         />
       ) : (
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative">
-            <Search className="text-muted-foreground pointer-events-none absolute top-2 left-2 size-4" />
-            <Input
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Zoek op naam of omschrijving"
-              className="w-72 pl-8"
-            />
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative w-full sm:w-72">
+              <Search className="text-muted-foreground pointer-events-none absolute top-2 left-2 size-4" />
+              <Input
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Zoek op naam of omschrijving"
+                className="bg-background w-full pl-8"
+              />
+            </div>
+            {/* Desktop: dropdown */}
+            <div className="hidden lg:block">
+              <Select
+                value={serviceFilter}
+                onValueChange={(v) => setServiceFilter(v as ServiceFilter)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SERVICE_FILTER_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="include_archived"
-              checked={includeArchived}
-              onCheckedChange={(v) => setIncludeArchived(Boolean(v))}
+          {/* Mobiel: chip-rij */}
+          <div className="lg:hidden">
+            <FilterChips
+              value={serviceFilter}
+              options={SERVICE_FILTER_OPTIONS}
+              onChange={setServiceFilter}
             />
-            <label htmlFor="include_archived" className="cursor-pointer text-sm">
-              Toon gearchiveerde diensten
-            </label>
           </div>
         </div>
       )}
 
-      <div className="bg-invora-surface rounded-card overflow-hidden border">
+      {/* Mobiel: simpele lijstweergave */}
+      <div className="lg:hidden">
+        <MobileServiceList
+          services={services}
+          isLoading={isLoading}
+          selectedIds={selectedIds}
+          onToggleSelect={toggleRow}
+          onOpenDetail={(id) => {
+            setSelectedServiceId(id)
+            setIsSheetOpen(true)
+          }}
+          onEdit={(service) => {
+            setEditingService(service)
+            setIsFormOpen(true)
+          }}
+          onArchive={(service) => void archiveOne(service)}
+          onDelete={(service) => setRowConfirmDelete(service)}
+          onCreateNew={() => {
+            setEditingService(null)
+            setIsFormOpen(true)
+          }}
+        />
+      </div>
+
+      {/* Desktop: tabel */}
+      <div className="bg-invora-surface rounded-card hidden overflow-hidden border lg:block">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-sm">
             <thead className="bg-invora-background sticky top-0 z-10">
@@ -314,6 +390,10 @@ export function DienstenClient() {
                     service={s}
                     selected={selectedIds.has(s.id)}
                     onToggle={(checked) => toggleRow(s.id, checked)}
+                    onOpenDetail={() => {
+                      setSelectedServiceId(s.id)
+                      setIsSheetOpen(true)
+                    }}
                     onEdit={() => {
                       setEditingService(s)
                       setIsFormOpen(true)
@@ -327,6 +407,21 @@ export function DienstenClient() {
           </table>
         </div>
       </div>
+
+      <ServiceDetailSheet
+        serviceId={selectedServiceId}
+        open={isSheetOpen}
+        onOpenChange={(open) => {
+          setIsSheetOpen(open)
+          if (!open) setSelectedServiceId(null)
+        }}
+        onEdit={(service) => {
+          setIsSheetOpen(false)
+          setSelectedServiceId(null)
+          setEditingService(service)
+          setIsFormOpen(true)
+        }}
+      />
 
       <ServiceFormDialog
         open={isFormOpen}
@@ -393,6 +488,7 @@ interface ServiceRowProps {
   service: Service
   selected: boolean
   onToggle: (checked: boolean) => void
+  onOpenDetail: () => void
   onEdit: () => void
   onArchive: () => void
   onDelete: () => void
@@ -402,19 +498,23 @@ function ServiceRow({
   service,
   selected,
   onToggle,
+  onOpenDetail,
   onEdit,
   onArchive,
   onDelete,
 }: ServiceRowProps) {
+  const stop = (e: React.MouseEvent) => e.stopPropagation()
+
   return (
     <tr
+      onClick={onOpenDetail}
       className={cn(
-        'border-t transition-colors',
+        'cursor-pointer border-t transition-colors',
         'hover:bg-invora-background/60 even:bg-invora-background/30',
         service.archived && 'opacity-60'
       )}
     >
-      <td className="px-3 py-3">
+      <td className="px-3 py-3" onClick={stop}>
         <Checkbox
           checked={selected}
           onCheckedChange={(v) => onToggle(Boolean(v))}
@@ -422,18 +522,14 @@ function ServiceRow({
         />
       </td>
       <td className="px-3 py-3">
-        <button
-          type="button"
-          className="text-left font-medium hover:underline"
-          onClick={onEdit}
-        >
+        <div className="font-medium">
           {service.name}
           {service.archived && (
             <span className="text-muted-foreground ml-2 text-xs font-normal">
               [GEARCHIVEERD]
             </span>
           )}
-        </button>
+        </div>
         {service.description && (
           <div className="text-muted-foreground line-clamp-1 text-xs">
             {service.description}
@@ -455,7 +551,7 @@ function ServiceRow({
       <td className="px-3 py-3 tabular-nums">
         {formatCurrency(service.total_revenue)}
       </td>
-      <td className="px-3 py-3 text-right">
+      <td className="px-3 py-3 text-right" onClick={stop}>
         <DropdownMenu>
           <DropdownMenuTrigger
             render={

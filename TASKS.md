@@ -1,6 +1,6 @@
 # TASKS.md — Invora Takenlijst
 *Bijgehouden gedurende het gehele project. Altijd up-to-date houden.*
-*Laatste update: 27 mei 2026*
+*Laatste update: 28 mei 2026*
 
 ## Status
 - `[ ]` Nog niet gestart
@@ -287,6 +287,50 @@ Tijdens het uitrollen naar productie liepen we tegen twee gecombineerde probleme
 
 **Nieuwe taken (toegevoegd):**
 - Geen nieuwe TASKS.md items. `redirectTo=` parameter herstellen is geen blocker voor Fase 4, kan tegelijk met Fase 11 (lees-only blokkering) als beide ingrijpen op de middleware-laag
+
+---
+
+### Mobiele UX optimalisatie *(afgerond 28 mei 2026, na Fase 4)*
+
+**Wat is gebouwd:**
+- **Mobiele sticky header** (`components/app/mobile-header.tsx`) — sage green balk, hamburger links, paginatitel gecentreerd, alleen `lg:hidden`. Volgt `env(safe-area-inset-top)` voor iOS-notch.
+- **Slide-in navigatiemenu** (`components/app/mobile-nav.tsx`) — `Sheet side="left" w-72`. Volledige navigatie (Dashboard, Facturen, Cliënten, Uren, Diensten, Rapporten + Instellingen onderaan) inclusief actieve-route markering. Footer met initialencirkel, voornaam en logout-knop. Sluit automatisch bij klikken op een item.
+- **MobileLayoutWrapper** (`components/app/mobile-layout-wrapper.tsx`) — client wrapper die paginatitel afleidt via `usePathname` en de open/closed state van het menu beheert. Wordt aangeroepen vanuit de server-side `app/(app)/layout.tsx`.
+- **Mobiele lijstweergave cliënten** (`components/app/clients/mobile-client-list.tsx`) — vervangt de tabel onder `lg`. Per rij: checkbox + naam (met `[GEARCHIVEERD]` label) + e-mail + categoriebadge + drie-puntjes menu met dezelfde 6 acties als desktop. `min-h-[64px]` voor tap-comfort, `active:bg-accent/30`.
+- **Mobiele lijstweergave diensten** (`components/app/services/mobile-service-list.tsx`) — analoog: naam + categorie · prijs onderregel + prijstype-badge + drie-puntjes (bewerken/archiveren/verwijderen).
+- **Herbruikbare FilterChips** (`components/app/filter-chips.tsx`) — horizontaal scrollbare chip-rij met `scrollbar-hide`. Gegenereerd type-veilig via generic `<T extends string>`.
+- **ServiceDetailSheet** (`components/app/services/service-detail-sheet.tsx`) — read-only slide-over met naam + prijstype-badge + details (prijs, categorie, omschrijving) + statistiek-blokken (gebruik + omzet) + "Bewerken"-knop onderaan. Identiek patroon als `ClientDetailSheet`.
+- **GET /api/services/[id]** toegevoegd aan bestaande route file — auth-check + RLS via `user_id`-filter + omzet via `getServiceRevenueMap` helper. Retourneert het volledige `Service` type.
+- **Cliëntenpagina** (`clienten-client.tsx`): `<h1>` verborgen op mobiel, zoekbalk full-width met `bg-background`, filter dropdown op desktop / chips op mobiel, paginering werkt voor beide weergaven.
+- **Dienstenpagina** (`diensten-client.tsx`): `<h1>` verborgen op mobiel, "Toon gearchiveerde diensten" checkbox vervangen door dropdown (desktop) + chips (mobiel) met Alle/Gearchiveerd — consistent met cliënten. Klikken op een dienstrij opent nu de read-only slide-over (was: direct bewerken). Bewerken via drie-puntjes of via "Bewerken"-knop in de slide-over.
+
+**Keuzes gemaakt (na vraagstelling aan Johnny):**
+1. **Paginatitel-aanpak (Optie B):** centraal mapping in MobileLayoutWrapper via `usePathname()` — geen plumbing per page.tsx, geen Context. Eenvoudig, token-efficiënt, dekt alle huidige routes. Fallback `'Invora'` voor onbekende routes.
+2. **Titel-duplicatie (Optie A):** `<h1>` verbergen op mobiel (`hidden lg:block`), actieknoppen-rij blijft. Header in sage green doet de wayfinding op mobiel.
+
+**Afwijkingen / inhoudelijke wijzigingen:**
+- **Filter diensten:** "Alle | Gearchiveerd" is een aparte view (niet meer optionele toon-toggle bovenop alles). Consistent met cliënten-filter sinds Fase 4. De BulkActionBar krijgt `showUnarchive` doorgegeven afhankelijk van actieve filter — bestaande bulk API ondersteunde `unarchive` al.
+- **INVORA_CONTEXT.md sectie 6** vermeldt dat Diensten en Rapporten "bereikbaar via Instellingen of direct via URL". De hamburger-menu is een nieuwe, expliciet gevraagde ontsluiting. Geen wijziging in bottomnav (blijft 5 items met centrale Nieuw-knop). Bottomnav en hamburger overlappen voor 4 items — acceptabel, hamburger is de canonical map.
+- **Diensten lijst client-side filter:** in 'archived'-view geeft API alles (omdat `include_archived=true` zonder strict-archived filter), client-side filter `.filter(s => s.archived)` knipt niet-archived eruit. Geen API-uitbreiding nodig.
+
+**Tests uitgevoerd:**
+- `npx tsc --noEmit` → 0 fouten
+- `npm run lint` → schoon
+- `npm run build` → 36 routes, geen warnings. `/clienten` 19.2 kB / 245 kB, `/diensten` 6.42 kB / 232 kB. Nieuwe API route `/api/services/[id]` aanwezig.
+- **Visuele/responsive tests:** vereist handmatig op echte mobiel of Chrome DevTools 375px — testplan in prompt sectie "Stap 8".
+
+**Handmatige acties voor Johnny:**
+- Test 1: sticky header titel + scroll-gedrag
+- Test 2: hamburger menu open/sluit + alle routes bereikbaar
+- Test 3: desktop (1280px) onaangetast — geen mobile header zichtbaar
+- Test 4: mobiele lijst cliënten + slide-over flow
+- Test 5: filter chips selectie + horizontaal scrollen
+- Test 6: zoekbalk witte achtergrond + focus ring
+- Test 7: dienst slide-over read-only + bewerken flow
+- Test 8: desktop diensten — slide-over opent ook hier bij klik op rij (gedragsverandering!)
+
+**Nieuwe taken:**
+- Geen nieuwe TASKS.md items — Fase 4 + deze UX-verbeteringen vormen samen één afronding-set voor Johnny om handmatig te valideren. Voortgangstabel update na akkoord.
 
 ---
 
