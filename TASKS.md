@@ -290,6 +290,76 @@ Tijdens het uitrollen naar productie liepen we tegen twee gecombineerde probleme
 
 ---
 
+### Fase 12 — Marketingsite *(afgerond 28 mei 2026 — naar voren gehaald)*
+
+**Wat is gebouwd:**
+
+*Route group `app/(marketing)/`*
+- **`layout.tsx`** — eigen marketing layout met `metadataBase`, OpenGraph en titel-template. Geen sidebar/bottomnav. Bevat `MarketingNav` boven `<main>` en `Footer` onder.
+- **`page.tsx`** — server component die 10 secties orchestreert. Alle SEO meta tags (title, description, keywords, OG) aanwezig.
+- **`contact/page.tsx`** — eenvoudige contact-pagina met sage green CTA-knop naar `mailto:support@invora.nl`. Verwijst naar Work Remote als bedrijf.
+- **`voorwaarden/page.tsx`** + **`privacy/page.tsx`** — verplaatst vanuit `app/voorwaarden/` en `app/privacy/`. Content uit Fase 2 behouden (warning blok, juridisch correcte intro). Eigen `<main>` wrapper + "← Terug naar Invora" link verwijderd want marketing nav/footer doet dat al.
+- **`blog/.gitkeep`** — folder blijft leeg conform prompt ("geen blog in deze fase").
+
+*Components in `components/marketing/`*
+- **`marketing-nav.tsx`** — sticky header (`top-0 z-50`), scroll-detectie via `useEffect` + `passive` listener, transparant boven de pagina → wit-met-blur + bottom-border bij `scrollY > 20`. Desktop links: Features/Hoe het werkt/Prijzen/FAQ + Inloggen + Gratis proberen knop. Mobiel: hamburger (Lucide `Menu`/`X`) opent een slide-down panel onder de header. Body-scroll-lock wanneer mobiel menu open is. Alle anchors als `/#section` zodat ze ook werken vanaf `/contact` etc.
+- **`hero-section.tsx`** + **`hero-illustration.tsx`** — twee-koloms hero op desktop, gestapeld op mobiel. NL-pill-badge, headline met sage-green accent op "Invora maakt factureren simpel.", twee knoppen (gradient + ghost), drie checkmark vertrouwenspunten. Custom 500×400 SVG illustratie met laptop/browser frame, abstract figuur (silhouet zonder gezicht), zwevende factuur-kaart, sage green check-badge en decoratieve gradient cirkels. Geen tekst in de SVG.
+- **`trust-bar.tsx`** — smalle balk met 4 items (Heart/Lock/Landmark/Star iconen + label), tussen hero en features.
+- **`features-section.tsx`** — 6 feature-kaarten in `lg:grid-cols-3 sm:grid-cols-2` grid. Elke kaart: tweekleurig icoon-blokje, naam, pijnpunt (cursief grijs), oplossing. Hover `-translate-y-1 hover:shadow-md`. Iconen: FileText/ShieldCheck/CreditCard/Bell/Clock/Smartphone.
+- **`app-mockup.tsx`** + **`app-mockup-section.tsx`** — gestileerde 600×400 SVG van het Invora dashboard (browser frame, sidebar, 3 KPI-kaartjes, 12-balks staafdiagram). Drie sage green checkmark-bulletpoints, "Probeer het zelf →" CTA naar `/register`. Tekst links / mockup rechts op desktop, omgekeerd op mobiel (`order-1` + `order-2`).
+- **`how-it-works-section.tsx`** — licht sage green achtergrond. 3 stappen met grote `01`/`02`/`03` cijfers in sage green, titel + beschrijving. Pijl-iconen tussen kaarten op desktop (verborgen op mobiel via `hidden md:block`).
+- **`comparison-section.tsx`** — vergelijkingstabel met 8 rijen × 4 kolommen. Invora-kolom heeft `border-2 border-invora-primary` rondom, sage-light achtergrond, groene checkmarks. Andere kolommen grijs met rode kruisjes / "Soms"-labels. Mobiel: horizontaal scrollbaar met een tip-tekst eronder.
+- **`pricing-section.tsx`** — één gecentreerde prijskaart `max-w-[480px]` met `border-2 border-invora-primary`. Floating pill-badge "Meest gekozen door zorgprofessionals" overlapt de bovenrand. €12 in `text-5xl`, BTW-uitleg eronder. 8 checkmark features. Volle-breedte gradient CTA.
+- **`testimonials-section.tsx`** — sage green gradient achtergrond. 3 placeholder testimonials in `md:grid-cols-3`. Witte kaarten met decoratief `Quote` icoon, 5-sterren ratings, cursieve quote, naam + beroep. PLACEHOLDER comment in source voor vervanging vóór lancering.
+- **`faq-section.tsx`** — gebruikt shadcn `Accordion` (geïnstalleerd via CLI, `base-nova` variant met `@base-ui/react/accordion`). 7 vragen met uitgebreide antwoorden over prijs, proefperiode, BTW-vrijstelling, iDEAL, AVG, CSV import, opzeggen. Default multi-open. Subtekst boven met mailto-link voor extra vragen.
+- **`cta-section.tsx`** — afsluitende sage gradient sectie met decoratieve witte blur-cirkels. Twee knoppen: witte primary "Gratis proberen →" + transparante outline "Inloggen". Vertrouwensregel eronder.
+- **`footer.tsx`** — donker (`#1A1A1A`) — logo + tagline links, Privacy/Voorwaarden/Contact nav rechts. Onderste regel: copyright met dynamic year + "Made with ♥ in Nederland".
+
+*SEO + root files*
+- **`app/sitemap.ts`** — 4 entries (`/`, `/privacy`, `/voorwaarden`, `/contact`) met dynamic `lastModified: new Date()`. URL via `process.env.NEXT_PUBLIC_APP_URL`.
+- **`app/robots.ts`** — Allow `/`, disallow alle app-routes (`/dashboard`, `/facturen`, etc.) + `/api`. Sitemap-URL via env var.
+
+*Verwijderd*
+- **`app/page.tsx`** (oude placeholder homepage) — botste met `app/(marketing)/page.tsx` op route `/`. Marketing-versie pakt nu de root.
+
+**Keuzes gemaakt (na vraagstelling aan Johnny):**
+1. **Voorwaarden + privacy locatie:** Optie A — verplaatst naar `app/(marketing)/voorwaarden/` en `app/(marketing)/privacy/` met `git mv` (history bewaard). Content uit Fase 2 ongewijzigd, alleen `<main>` wrapper en "Terug naar Invora" link verwijderd. URLs (`/voorwaarden`, `/privacy`) blijven gelijk — auth-flow links breken niet.
+2. **SEO domein URL:** Optie A — `process.env.NEXT_PUBLIC_APP_URL` dynamisch in `layout.tsx`, `page.tsx`, `sitemap.ts`, `robots.ts`. Fallback `https://invora.nl` voor productie zodra het domein actief is. Geen refactor nodig na domein-registratie.
+
+**Eigen keuzes (gedocumenteerd zonder vraag):**
+- **`/#features` cross-page anchors** — anchors werken ook vanaf `/contact` of `/privacy`. Next.js scrollt automatisch na navigatie.
+- **Accordion via shadcn CLI** (`npx shadcn@latest add accordion --yes`) — `base-nova` variant op `@base-ui/react/accordion`. API: `Accordion` (Root) > `AccordionItem value="..."` > `AccordionTrigger` + `AccordionContent`. Default multi-open is voor FAQ prettig.
+- **Marketing nav scrollY threshold = 20px** — eerste pixels blijven transparant; daarna wit + `supports-backdrop-filter:backdrop-blur-md`.
+- **Body-scroll-lock** bij mobiel menu open — voorkomt achtergrond-scroll achter het slide-down panel.
+
+**Afwijkingen van prompt:**
+- **Mobiel menu = slide-down panel onder de header**, niet shadcn `Sheet side="right"`. Reden: de prompt liet "Sheet of een eenvoudige absolute div" open. Een full-height side sheet is overkill voor 4 nav-items + 2 knoppen. De slide-down panel sluit beter aan bij verwachte mobile-web-patronen (Stripe, Linear) en is sneller.
+- **Tekst boven FAQ** vermeldt `mailto:support@invora.nl` als fallback voor onbeantwoorde vragen — niet expliciet in prompt, voelt natuurlijk.
+- **Robots disallow `/api`** toegevoegd naast de app-routes uit de prompt — verstandiger, voorkomt dat crawlers API-routes proberen te indexeren.
+
+**Tests uitgevoerd:**
+- `npx tsc --noEmit` → 0 fouten (na `rm -rf .next` om stale type cache van verplaatste bestanden weg te halen)
+- `npm run lint` → schoon
+- `npm run build` → 39 routes (was 36, +`/contact`, +`/sitemap.xml`, +`/robots.txt`), homepage nu **static** prerendered, `/` 8.11 kB / 119 kB First Load. Geen warnings.
+- **Visuele tests** (kleuren, animaties, responsive, navigatie hover/scroll, hamburger animatie, vergelijkingstabel scroll) staan in handmatige testronde voor Johnny — vereist browser.
+
+**Handmatige acties voor Johnny:**
+1. Browser-test `/` desktop + mobiel (375px iPhone-emulatie of echte telefoon)
+2. Klik door alle nav-anchors (Features/Hoe het werkt/Prijzen/FAQ) — controleer smooth scroll en sticky-nav blur na scrollen
+3. Klik vanaf `/contact` op een nav-anchor — controleer cross-page anchor werking
+4. Klik op alle CTA-knoppen — `/register` + `/login` redirects moeten werken (gebouwd in Fase 2)
+5. FAQ accordion open/sluit
+6. Vergelijkingstabel op mobiel — horizontaal scrollbaar
+7. Hamburger menu op mobiel — open/sluit + body scroll lock
+8. Check `/sitemap.xml` en `/robots.txt` URLs
+
+**Nieuwe taken:**
+- Geen nieuwe TASKS.md items. Wel een notitie voor de toekomst:
+  - **Testimonials** zijn gemarkeerd met `PLACEHOLDER` comment — vervangen door echte voor lancering (Fase 13.5).
+  - **Privacy/voorwaarden teksten** worden definitief vóór lancering (Fase 13 of eerder als juristische tekst beschikbaar).
+
+---
+
 ### Mobiele UX optimalisatie *(afgerond 28 mei 2026, na Fase 4)*
 
 **Wat is gebouwd:**
@@ -891,7 +961,7 @@ Bij 10 klanten → M10 (iOS app)
 | 9 | Instellingen | [ ] | Parallel |
 | 10 | Rapportages | [ ] | Na 5 + 7 |
 | 11 | Stripe | [ ] | Na 9 |
-| 12 | Marketingsite | [ ] | Volledig parallel |
+| 12 | Marketingsite | [x] | Naar voren gehaald. 10 secties, alle SEO, voorwaarden/privacy verplaatst naar (marketing)/, contact-pagina nieuw, sitemap.xml + robots.txt aanwezig. Handmatig browser-testen door Johnny. |
 | 13 | Lancering | [ ] | MVP live |
 | M3 | KvK + Postcode APIs | [ ] | Bij 3 betalende klanten |
 | M10 | iOS app | [ ] | Bij 10 betalende klanten |
