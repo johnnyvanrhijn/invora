@@ -329,12 +329,13 @@ Tijdens het uitrollen naar productie liepen we tegen twee gecombineerde probleme
 - Test 7: dienst slide-over read-only + bewerken flow
 - Test 8: desktop diensten — slide-over opent ook hier bij klik op rij (gedragsverandering!)
 
-**Nieuwe taken:**
-- Geen nieuwe TASKS.md items — Fase 4 + deze UX-verbeteringen vormen samen één afronding-set voor Johnny om handmatig te valideren. Voortgangstabel update na akkoord.
+**Handmatige tests:** door Johnny op echte mobiel uitgevoerd (28 mei 2026) → alles werkt. Fase 4 + mobiele UX goedgekeurd.
+
+**Nieuwe taken:** geen.
 
 ---
 
-### Fase 4 — Cliënten en diensten *(afgerond 27 mei 2026)*
+### Fase 4 — Cliënten en diensten *(afgerond 27 mei 2026, akkoord 28 mei 2026)*
 
 **Wat is gebouwd:**
 
@@ -882,7 +883,7 @@ Bij 10 klanten → M10 (iOS app)
 | 1 | Projectfundament | [x] | 1.1 ✅ stack. 1.2 ✅ schema + types. 1.3 ✅ env + smoke test. Klaar voor Fase 2. |
 | 2 | Auth + onboarding | [x] | 2.1 ✅ register/login/forgot/reset + Google + e-mail bevestiging. 2.2 ✅ welcome + 2-staps onboarding + middleware redirect. Voorwaarden/privacy als placeholder. Google OAuth credentials nog handmatig door Johnny. |
 | 3 | Dashboard + nav | [x] | 3.1 ✅ sidebar desktop, bottomnav mobiel, dashboard met KPIs + grafiek, coach mark, dark mode via system. Lees-only blokkering uitgesteld naar Fase 11. |
-| 4 | Cliënten + diensten | [ ] | |
+| 4 | Cliënten + diensten | [x] | 4.1 ✅ cliëntenbeheer + slide-over. 4.2 ✅ diensten + slide-over. Mobiele UX: sticky header, hamburger menu, lijstweergave + filter chips. Handmatig getest 28 mei 2026 — akkoord Johnny. |
 | 5 | Facturen | [ ] | Kernfeature |
 | 6 | Mollie | [ ] | |
 | 7 | Uren | [ ] | Parallel aan 5 |
